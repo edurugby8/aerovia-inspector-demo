@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Propuesta B · Inspección en contexto</title>
+    <link rel="icon" href="data:," />
+    <script type="module">
+      import '@fontsource/source-serif-4/500.css';
+      import '@fontsource/source-serif-4/600.css';
+      import '@fontsource/inter/400.css';
+      import '@fontsource/inter/500.css';
+    </script>
+    <style>
+      :root {
+        --navy: #071321; --deep: #0b1a2c; --blue: #0c4a80; --blue-text: #8fc0ec;
+        --paper: #fbfaf8; --ink: #0b1624; --muted: #b9c6d4; --line: rgba(243, 241, 236, 0.16);
+        --gutter: clamp(20px, 4.4vw, 64px); --bar: 112px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--navy); color: #f3f1ec; }
+      body { font: 400 17px/1.55 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+      a { color: inherit; text-decoration: none; }
+      /* the logo stays on its own off-white: the bar is that colour */
+      .bar { height: var(--bar); background: var(--paper); color: var(--ink); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--gutter); border-bottom: 1px solid #e4e2dc; }
+      .bar img { display: block; height: 88px; width: auto; }
+      .bar nav { display: flex; align-items: center; gap: 34px; font: 500 15px/1 Inter, sans-serif; }
+      .bar nav a:not(.btn) { color: #2a3a4d; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px; border-radius: 2px; font: 500 15px/1 Inter, sans-serif; letter-spacing: 0.01em; }
+      .btn-navy { background: var(--navy); color: #f3f1ec; }
+      .btn-blue { background: var(--blue); color: #fff; }
+      .btn-line { border: 1px solid rgba(243, 241, 236, 0.4); color: #f3f1ec; }
+      .btn-small { min-height: 42px; padding: 0 18px; font-size: 14px; }
+      .hero { display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); height: calc(100svh - var(--bar)); min-height: 560px; }
+      .panel { background: var(--navy); display: flex; flex-direction: column; justify-content: space-between; padding: clamp(40px, 7vh, 80px) clamp(28px, 4vw, 64px) clamp(28px, 4vh, 44px) var(--gutter); }
+      .kicker { font: 500 12px/1.4 Inter, sans-serif; letter-spacing: 0.18em; text-transform: uppercase; color: var(--blue-text); margin: 0 0 22px; }
+      h1 { font: 500 clamp(40px, 3.9vw, 60px)/1.04 'Source Serif 4', Georgia, serif; letter-spacing: -0.012em; margin: 0; text-wrap: balance; }
+      .lead { margin: 22px 0 0; font-size: clamp(17px, 1.25vw, 19px); color: var(--muted); max-width: 27em; }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+      .index { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; border-top: 1px solid var(--line); padding-top: 18px; font: 400 13px/1.45 Inter, sans-serif; color: rgba(243, 241, 236, 0.6); }
+      .index b { display: block; font: 500 11px/1.4 Inter, sans-serif; letter-spacing: 0.16em; color: var(--blue-text); margin-bottom: 4px; }
+      .index .on { color: #f3f1ec; }
+      .figure { position: relative; overflow: hidden; background: #0d2034; }
+      .figure img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      .figure figcaption { position: absolute; left: 20px; bottom: 18px; font: 400 11px/1 Inter, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(243, 241, 236, 0.75); background: rgba(7, 19, 33, 0.55); padding: 7px 10px; }
+      .skip { font: 500 13px/1 Inter, sans-serif; color: rgba(243, 241, 236, 0.72); border-bottom: 1px solid var(--line); padding-bottom: 4px; justify-self: start; }
+      .foot { display: grid; gap: 22px; }
+      .menu-btn { display: none; }
+      @media (max-width: 860px) {
+        :root { --bar: 76px; }
+        .bar { padding: 0 18px; }
+        .bar img { height: 58px; }
+        .bar nav { display: none; }
+        .menu-btn { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid #c9ccd1; border-radius: 2px; }
+        .menu-btn span, .menu-btn span::before, .menu-btn span::after { display: block; width: 18px; height: 1.5px; background: var(--ink); position: relative; content: ''; }
+        .menu-btn span::before { position: absolute; top: -6px; } .menu-btn span::after { position: absolute; top: 6px; }
+        .hero { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; min-height: 0; }
+        .figure { order: -1; aspect-ratio: 1170 / 1380; max-height: 56svh; width: 100%; }
+        .panel { padding: 28px 20px 30px; gap: 28px; }
+        h1 { font-size: 36px; }
+        .lead { font-size: 16px; margin-top: 14px; }
+        .actions { display: grid; grid-template-columns: 1fr; margin-top: 24px; }
+        .index { grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <a href="#"><img src="../src/assets/brand/aerovia-logo.webp" alt="AEROVIA INSPECTOR" /></a>
+      <nav>
+        <a href="#">Servicios</a><a href="#">Proceso</a><a href="#">Entregables</a><a href="#">Informe</a><a href="#">Contacto</a>
+        <a class="btn btn-navy btn-small" href="#">Solicitar inspección</a>
+      </nav>
+      <a class="menu-btn" href="#" aria-label="Menú"><span></span></a>
+    </div>
+    <section class="hero">
+      <div class="panel">
+        <div>
+          <p class="kicker">Inspección eólica con drones</p>
+          <h1>Inspección de palas eólicas con drones.</h1>
+          <p class="lead">Captura visual detallada para apoyar las decisiones de mantenimiento.</p>
+          <div class="actions">
+            <a class="btn btn-blue" href="#">Solicitar inspección</a>
+            <a class="btn btn-line" href="#">Descubrir el proceso <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+        <div class="foot">
+          <div class="index">
+            <span class="on"><b>01</b>Presentación</span>
+            <span><b>02</b>Inspección</span>
+            <span><b>03</b>Resultado</span>
+          </div>
+          <a class="skip" href="#">Saltar a servicios ↓</a>
+        </div>
+      </div>
+      <figure class="figure" style="margin:0">
+        <picture>
+          <source media="(max-width: 860px)" srcset="../docs/propuestas/render/b-movil.webp" />
+          <img src="../docs/propuestas/render/b-escritorio.webp" alt="Dron industrial en vuelo frente al rotor detenido de un aerogenerador, con el paisaje al fondo" />
+        </picture>
+        <figcaption>Recreación 3D</figcaption>
+      </figure>
+    </section>
+  </body>
+</html>

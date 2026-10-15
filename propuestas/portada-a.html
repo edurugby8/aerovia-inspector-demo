@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Propuesta A · Detalle industrial</title>
+    <link rel="icon" href="data:," />
+    <script type="module">
+      import '@fontsource/inter-tight/500.css';
+      import '@fontsource/inter-tight/600.css';
+      import '@fontsource/inter/400.css';
+      import '@fontsource/inter/500.css';
+    </script>
+    <style>
+      :root {
+        --navy: #071321; --deep: #0b1a2c; --blue: #0c4a80; --blue-text: #8fc0ec;
+        --paper: #f3f1ec; --muted: #c4cfdb; --line: rgba(243, 241, 236, 0.22);
+        --gutter: clamp(20px, 4.4vw, 64px);
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--navy); color: var(--paper); }
+      body { font: 400 17px/1.55 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+      a { color: inherit; text-decoration: none; }
+      .hero { position: relative; height: 100svh; min-height: 620px; overflow: hidden; }
+      .hero > picture, .hero > picture img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      /* a scrim only where the words sit: the lower right, over open sky and haze */
+      .scrim { position: absolute; inset: 0; pointer-events: none;
+        background:
+          radial-gradient(75% 85% at 100% 100%, rgba(5, 13, 23, 0.82) 0%, rgba(5, 13, 23, 0.55) 42%, rgba(5, 13, 23, 0) 78%),
+          linear-gradient(to bottom, rgba(5, 13, 23, 0.55) 0%, rgba(5, 13, 23, 0) 18%); }
+      header { position: absolute; inset: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; padding: 22px var(--gutter); z-index: 2; }
+      .plate { display: block; background: #fbfaf8; padding: 9px 12px; border-radius: 2px; box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.8); }
+      .plate img { display: block; height: 72px; width: auto; }
+      nav { display: flex; align-items: center; gap: 30px; padding-top: 18px; font: 500 15px/1 Inter, sans-serif; }
+      nav a { color: rgba(243, 241, 236, 0.86); }
+      .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 22px; border-radius: 2px; font: 500 15px/1 Inter, sans-serif; letter-spacing: 0.01em; }
+      .btn-solid { background: var(--paper); color: var(--navy); }
+      .btn-line { border: 1px solid rgba(243, 241, 236, 0.5); color: var(--paper); }
+      .btn-small { min-height: 40px; padding: 0 16px; font-size: 14px; }
+      .copy { position: absolute; z-index: 2; right: var(--gutter); bottom: clamp(56px, 10vh, 104px); width: min(600px, 44vw); }
+      .kicker { font: 500 12px/1.4 Inter, sans-serif; letter-spacing: 0.18em; text-transform: uppercase; color: var(--blue-text); margin: 0 0 18px; }
+      h1 { font: 600 clamp(40px, 4.1vw, 60px)/1.02 'Inter Tight', sans-serif; letter-spacing: -0.025em; margin: 0; text-wrap: balance; }
+      .lead { margin: 20px 0 0; font-size: clamp(17px, 1.3vw, 19px); color: var(--muted); max-width: 30em; }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+      .meta { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; margin: 26px 0 0; font: 500 12px/1 Inter, sans-serif; letter-spacing: 0.08em; color: rgba(243, 241, 236, 0.6); }
+      .skip { font-size: 13px; letter-spacing: 0; color: rgba(243, 241, 236, 0.8); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+      .credit { position: absolute; z-index: 2; right: var(--gutter); bottom: 26px; font: 400 11px/1 Inter, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(243, 241, 236, 0.55); }
+      .menu-btn { display: none; }
+      @media (max-aspect-ratio: 9/10) {
+        .scrim { background: radial-gradient(95% 70% at 100% 100%, rgba(5, 13, 23, 0.9) 0%, rgba(5, 13, 23, 0.62) 45%, rgba(5, 13, 23, 0) 85%), linear-gradient(to bottom, rgba(5, 13, 23, 0.5) 0%, rgba(5, 13, 23, 0) 16%); }
+        header { padding: 16px 18px; }
+        .plate { padding: 6px 8px; } .plate img { height: 50px; }
+        nav { display: none; }
+        .menu-btn { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid rgba(243, 241, 236, 0.45); border-radius: 2px; }
+        .menu-btn span, .menu-btn span::before, .menu-btn span::after { display: block; width: 18px; height: 1.5px; background: var(--paper); position: relative; content: ''; }
+        .menu-btn span::before { position: absolute; top: -6px; } .menu-btn span::after { position: absolute; top: 6px; }
+        .copy { left: 31%; right: 18px; width: auto; bottom: 60px; }
+        h1 { font-size: 31px; }
+        .lead { font-size: 15px; margin-top: 12px; }
+        .actions { margin-top: 22px; display: grid; grid-template-columns: 1fr; }
+        .btn { justify-content: center; }
+        .meta span { display: none; }
+        .credit { right: 20px; bottom: 22px; }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <picture>
+        <source media="(max-aspect-ratio: 9/10)" srcset="../docs/propuestas/render/a-movil.webp" />
+        <img src="../docs/propuestas/render/a-escritorio.webp" alt="Dron industrial junto a la pala detenida de un aerogenerador, con la zona del borde de ataque en primer plano" />
+      </picture>
+      <div class="scrim"></div>
+      <header>
+        <a class="plate" href="#"><img src="../src/assets/brand/aerovia-logo.webp" alt="AEROVIA INSPECTOR" /></a>
+        <nav>
+          <a href="#">Servicios</a><a href="#">Proceso</a><a href="#">Entregables</a><a href="#">Informe</a><a href="#">Contacto</a>
+          <a class="btn btn-solid btn-small" href="#">Solicitar inspección</a>
+        </nav>
+        <a class="menu-btn" href="#" aria-label="Menú"><span></span></a>
+      </header>
+      <div class="copy">
+        <p class="kicker">Inspección eólica</p>
+        <h1>Inspección de palas eólicas con drones.</h1>
+        <p class="lead">Captura visual detallada para apoyar las decisiones de mantenimiento.</p>
+        <div class="actions">
+          <a class="btn btn-solid" href="#">Solicitar inspección</a>
+          <a class="btn btn-line" href="#">Descubrir el proceso <span aria-hidden="true">→</span></a>
+        </div>
+        <p class="meta"><a class="skip" href="#">Saltar a servicios ↓</a><span>01 Presentación · 02 Inspección · 03 Resultado</span></p>
+      </div>
+      <span class="credit">Recreación 3D</span>
+    </section>
+  </body>
+</html>
