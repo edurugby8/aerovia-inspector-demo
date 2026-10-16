@@ -1,7 +1,7 @@
 // The scene for the cover proposals: the inspected turbine and the drone, no terrain and no
-// repeated wind farm, lit by a late-afternoon sky and a low sun. Models come from the
-// current base (real-scale blade aerofoil, drone with gimbal); the blade's paint gets a
-// close-up surface (gelcoat sheen, fine orange peel) because the covers look at it closely.
+// repeated wind farm, lit by an afternoon sky and the sun. Models come from the current base
+// (real-scale blade aerofoil, drone with gimbal); the blade's paint and the example erosion
+// get close-up surfaces (surfaces.ts) because the covers look at them closely.
 import * as THREE from 'three';
 import { createMaterials } from '../src/experience/materials';
 import { noise2 } from '../src/experience/math';
@@ -12,6 +12,7 @@ import {
 } from '../src/experience/models/turbine';
 import { droneState, gimbalAngles, gimbalTarget } from '../src/experience/trajectory';
 import { skyTexture } from './sky';
+import { bladeSkin, erosionMaps, skinTransform, smearProps } from './surfaces';
 
 /** Towards the sun: low (≈13°), in front of the rotor and a little to the side of blade B. */
 export const SUN_DIR = new THREE.Vector3(-0.35, 0.22, 0.91).normalize();
@@ -39,24 +40,34 @@ function gelcoatNormal() {
   return t;
 }
 
-export function buildProposalScene() {
+export type PropLook = 'still' | 'smear';
+
+export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear' }: { sunDir?: THREE.Vector3; props?: PropLook } = {}) {
   const mats = createMaterials();
   const scene = new THREE.Scene();
-  const sky = skyTexture({ sun: SUN_DIR, width: 4096 });
+  const sky = skyTexture({ sun: sunDir, width: 4096 });
   scene.background = sky;
   scene.environment = sky;
 
   const sun = new THREE.DirectionalLight(new THREE.Color(1, 0.93, 0.84), 3.4);
-  sun.position.copy(SUN_DIR).multiplyScalar(400);
+  sun.position.copy(sunDir).normalize().multiplyScalar(400);
   sun.target.position.set(0, 100, 0);
   scene.add(sun, sun.target);
 
-  // close-up paint: satin gelcoat with a clear sheen, fine texture along the span
+  // close-up paint: semi-gloss coating with its protection tape and wear (surfaces.ts), fine
+  // orange peel in the top coat
   const peel = gelcoatNormal();
   peel.repeat.set(60, 3);
+  const skin = bladeSkin();
   const blade = new THREE.MeshPhysicalMaterial({
-    color: '#e8eaec', vertexColors: true, roughness: 0.4, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.24,
-    normalMap: peel, normalScale: new THREE.Vector2(0.04, 0.04),
+    color: '#ffffff', map: skinTransform(skin.map), roughness: 1, roughnessMap: skinTransform(skin.roughnessMap), metalness: 0,
+    normalMap: skinTransform(skin.normalMap), normalScale: new THREE.Vector2(1, 1),
+    clearcoat: 0.25, clearcoatRoughness: 0.22, clearcoatNormalMap: peel, clearcoatNormalScale: new THREE.Vector2(0.08, 0.08),
+  });
+  const wear = erosionMaps(39.2, 41.0, DEFECT.chord[0], DEFECT.chord[1]);
+  const erosion = new THREE.MeshPhysicalMaterial({
+    color: '#ffffff', map: wear.map, transparent: true, depthWrite: false, roughness: 1, roughnessMap: wear.roughnessMap, metalness: 0,
+    normalMap: wear.normalMap, normalScale: new THREE.Vector2(1, 1), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   });
   const m = mats.turbine;
   const g = new THREE.Group();
@@ -77,15 +88,18 @@ export function buildProposalScene() {
   for (const id of BLADES) {
     const b = decompose(new THREE.Group(), bladeMatrix(id));
     add(b, geo.surface, blade); add(b, geo.te, m.bladeEdge); add(b, receptors, m.receptor);
-    if (id === DEFECT.blade) add(b, buildBladePatch(DEFECT.span[0], DEFECT.span[1], DEFECT.chord[0], DEFECT.chord[1], { nr: 48, nq: 48, offset: 0.003 }), m.defect);
+    if (id === DEFECT.blade) add(b, buildBladePatch(DEFECT.span[0], DEFECT.span[1], DEFECT.chord[0], DEFECT.chord[1], { nr: 48, nq: 96, offset: 0.002 }), erosion);
+    // the same kind of wear on the upper blade, which the cover A inspects
+    if (id === 'A') add(b, buildBladePatch(39.2, 41.0, DEFECT.chord[0], DEFECT.chord[1], { nr: 48, nq: 96, offset: 0.002 }), erosion);
     rotor.add(b);
   }
   g.add(rotor);
   scene.add(g);
 
-  // the drone with still propellers (no motion blur discs in a still image)
+  // the drone; its propellers smeared by the spin as a short shutter sees them, or still
   const drone: DroneRig = buildDrone(mats.drone, { ring: 64 });
   for (const pr of drone.props) pr.disc.removeFromParent();
+  if (props === 'smear') smearProps(drone);
   scene.add(drone.root);
   const qYaw = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
   /**

@@ -1,5 +1,7 @@
 # Rediseño de la portada: dos direcciones para elegir
 
+> **Segunda entrega:** la dirección A revisada (portada en escritorio y móvil, prueba de movimiento y HDRI identificado) está en [revision-a.md](revision-a.md). Este documento recoge la primera entrega tal como se presentó.
+
 Primera entrega del rediseño: un análisis de la demo publicada y dos portadas de alta fidelidad, cada una en escritorio y en móvil. Todavía no se reconstruye la web; se hará con la dirección que se elija.
 
 Las imágenes de las portadas son **renders reales de la escena 3D** del proyecto, hechos con trazado de rayos (*path tracing*), no ilustraciones ni fotomontajes. Lo que se ve es la calidad que se puede producir hoy con estos medios. Más abajo se indica qué recursos son provisionales y qué haría falta para subir el nivel.

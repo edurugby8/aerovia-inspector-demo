@@ -10,7 +10,7 @@ const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split('
 const base = arg('url', 'http://localhost:5174/aerovia-inspector-demo/');
 const w = Number(arg('w', '1600')), h = Number(arg('h', '900'));
 const params = new URLSearchParams();
-for (const k of ['shot', 'fmt', 'w', 'h', 'spp', 'mode', 'cam', 'camOn', 'look', 'aim', 'fov', 'tm', 'exp', 'hover']) { const val = arg(k, null); if (val !== null) params.set(k, val); }
+for (const k of ['shot', 'fmt', 'w', 'h', 'spp', 'mode', 'cam', 'camOn', 'look', 'aim', 'fov', 'tm', 'exp', 'hover', 'sun', 'roll', 'props']) { const val = arg(k, null); if (val !== null) params.set(k, val); }
 params.set('w', String(w)); params.set('h', String(h));
 const out = path.resolve(arg('out', `e2e/out/propuesta-${arg('shot', 'a')}-${arg('fmt', 'wide')}-${arg('mode', 'pt')}.png`));
 await fs.mkdir(path.dirname(out), { recursive: true });

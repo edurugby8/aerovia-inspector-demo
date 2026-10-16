@@ -9,7 +9,7 @@ import { DEFECT, bladeSurfaceWorld } from '../src/experience/models/turbine';
 import { HUB } from '../src/experience/trajectory';
 import { aimAt } from './aim';
 import { parseHover } from './hover';
-import { buildProposalScene } from './scene';
+import { buildProposalScene, type PropLook } from './scene';
 import { SHOTS, type ShotName, type Format } from './shots';
 
 declare global { interface Window { __done?: { ms: number; samples: number }; __overlay?: unknown; __anchors?: unknown; __progress?: unknown } }
@@ -27,7 +27,8 @@ renderer.toneMapping = TONE[(q.get('tm') ?? 'agx') as keyof typeof TONE];
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-const { scene, poseDrone } = buildProposalScene();
+const sunQ = q.get('sun')?.split(',').map(Number);
+const { scene, poseDrone } = buildProposalScene({ ...(sunQ ? { sunDir: new THREE.Vector3(sunQ[0], sunQ[1], sunQ[2]) } : {}), props: (q.get('props') ?? 'smear') as PropLook });
 const shot = SHOTS[name][fmt];
 renderer.toneMappingExposure = Number(q.get('exp') ?? shot.exposure);
 const pose = poseDrone(shot.p, parseHover(q.get('hover')));
@@ -37,7 +38,7 @@ const placed = shot.camera(pose);
 const camOn = q.get('camOn')?.split(',').map(Number);
 camera.position.copy(camOn ? bladeSurfaceWorld('B', camOn[0], camOn[1]).add(new THREE.Vector3(camOn[2], camOn[3], camOn[4])) : vec(q.get('cam')) ?? placed.position);
 const aim = q.get('aim')?.split(',').map(Number);
-if (aim) aimAt(camera, pose.position, aim[0], aim[1]); else camera.lookAt(vec(q.get('look')) ?? placed.look);
+if (aim) aimAt(camera, pose.position, aim[0], aim[1], THREE.MathUtils.degToRad(Number(q.get('roll') ?? 0))); else camera.lookAt(vec(q.get('look')) ?? placed.look);
 camera.updateProjectionMatrix();
 camera.updateMatrixWorld();
 
@@ -56,6 +57,10 @@ window.__anchors = {
   le40: bladeSurfaceWorld('B', 40, 0.5).toArray().map((v) => +v.toFixed(2)),
   le50: bladeSurfaceWorld('B', 50, 0.5).toArray().map((v) => +v.toFixed(2)),
   le58: bladeSurfaceWorld('B', 58, 0.5).toArray().map((v) => +v.toFixed(2)),
+  la30: bladeSurfaceWorld('A', 30, 0.5).toArray().map((v) => +v.toFixed(2)),
+  la40: bladeSurfaceWorld('A', 40, 0.5).toArray().map((v) => +v.toFixed(2)),
+  la40te: bladeSurfaceWorld('A', 40, 0.0).toArray().map((v) => +v.toFixed(2)),
+  la50: bladeSurfaceWorld('A', 50, 0.5).toArray().map((v) => +v.toFixed(2)),
   hub: HUB.toArray(),
   camera: camera.position.toArray().map((v) => +v.toFixed(2)),
 };
