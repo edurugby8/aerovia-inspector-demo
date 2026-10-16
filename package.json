@@ -24,12 +24,16 @@
     "three": "0.186.1"
   },
   "devDependencies": {
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/inter-tight": "5.3.0",
+    "@fontsource/source-serif-4": "5.3.1",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.1.2",
     "puppeteer-core": "25.13.0",
+    "three-gpu-pathtracer": "0.0.27",
     "three-mesh-bvh": "0.9.16",
     "typescript": "7.0.2",
     "vite": "8.3.4",

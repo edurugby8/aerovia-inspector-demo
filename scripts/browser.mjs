@@ -25,6 +25,8 @@ export function launchBrowser(extraArgs = []) {
   return puppeteer.launch({
     executablePath: browserPath(),
     headless: 'new',
+    // long path-traced renders keep one wait open for many minutes
+    protocolTimeout: 40 * 60 * 1000,
     args: ['--hide-scrollbars', '--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=default', ...extraArgs],
   });
 }
