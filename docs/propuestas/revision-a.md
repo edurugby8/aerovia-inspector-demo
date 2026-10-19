@@ -48,8 +48,14 @@ Con el HDRI, la luz, los reflejos y el fondo salen de un cielo fotografiado: nub
   - **Profundidad.** El dron, cerca de la cámara, se desplaza en el cuadro menos que la pala, y el cielo, al fondo, se mueve aún menos.
   - **Materiales.** La luz sobre la pala cambia al cambiar el ángulo: brillo, cinta y suciedad.
   - **Continuidad.** Sin saltos ni cortes, sin intersecciones y con la misma luz en todos los fotogramas.
-- **Cómo se ha hecho.** DATOS_SECUENCIA
-- **Comprobación de continuidad.** DATOS_CONTINUIDAD
+- **Cómo se ha hecho.**
+  - 96 fotogramas a 1280×800 y 128 muestras por píxel, con el mismo motor, la misma escena y el mismo cielo que la portada.
+  - Unos 12 s por fotograma, unos 20 minutos en total, en la RTX 3050 del portátil. El render se hizo en dos tandas porque se cortó en el fotograma 49 y se reanudó desde ahí. Como la posición de las hélices depende solo del número de fotograma, el resultado es el mismo que en una sola tanda.
+  - El vídeo es WebM (VP9) de 6,4 MB: medio segundo de pausa en cada extremo y 9,4 s en total.
+- **Comprobación de continuidad.**
+  - Se midió la diferencia entre cada fotograma y el siguiente.
+  - Sigue una curva suave: crece al arrancar, alcanza su máximo a mitad del movimiento y baja al frenar. No hay picos, ni siquiera en el fotograma 49, donde se reanudó el render.
+  - Donde la cámara casi está quieta, la diferencia es mínima, así que el grano no parpadea de forma apreciable.
 - **Límites conocidos.**
   - Queda algo de grano fino, propio de las muestras por fotograma; en la producción final se usarían más muestras.
   - El cielo es de 4K. En un encuadre tan cerrado se ve algo suave, como un fondo ligeramente desenfocado.
