@@ -64,8 +64,8 @@ export const SKIN_SPAN = [26, 54] as const;
  * scale (tape edges, waviness of the moulded shell, pits), in the blade's uv layout restricted
  * to SKIN_SPAN (apply `skinTransform` to each map).
  */
-export function bladeSkin() {
-  const [R0, R1] = SKIN_SPAN, W = 4096, H = 1024;
+export function bladeSkin({ w: W = 4096, h: H = 1024 } = {}) {
+  const [R0, R1] = SKIN_SPAN;
   const n = noise2(77), m = noise2(78), k = noise2(79), r = rng(3);
   const col = new Uint8Array(W * H * 4), rough = new Uint8Array(W * H * 4);
   const hgt = new Float32Array(W * H), S = new Float32Array(W * H);
@@ -210,27 +210,68 @@ export function erosionMaps(r0: number, r1: number, q0: number, q1: number) {
   return { map: dataTexture(col, W, H, true), roughnessMap: dataTexture(rough, W, H, false), normalMap: dataTexture(nrm, W, H, false) };
 }
 
+// the propeller planform (radius → chord, m) and pitch of models/drone.ts, for its blur
+const PROP_R = 0.266, PROP_PITCH = 0.17;
+const PROP_CHORD: [number, number][] = [[0.024, 0.022], [0.04, 0.032], [0.07, 0.042], [0.11, 0.0435], [0.17, 0.037], [0.22, 0.029], [0.25, 0.022], [0.262, 0.014], [0.266, 0.004]];
+const propChord = (r: number) => {
+  for (let i = 1; i < PROP_CHORD.length; i++) if (r <= PROP_CHORD[i][0]) { const [r0, c0] = PROP_CHORD[i - 1], [r1, c1] = PROP_CHORD[i]; return c0 + ((c1 - c0) * (r - r0)) / (r1 - r0); }
+  return 0;
+};
+
 /**
- * Propellers caught mid-spin, as a camera at a short shutter sees them: each blade smeared
- * over an arc of `arc` radians by `copies` faint copies. `phase` turns every propeller.
+ * How a two-blade propeller looks to a camera while it spins: each blade swept over an arc of
+ * `arc` radians during the exposure, so a point is dark for the share of the exposure a blade
+ * covers it. Dense near the hub where the blades are wide, faint at the tips. An alpha map
+ * (green) in the propeller's plane, laid out like a RingGeometry's planar uvs.
  */
-export function smearProps(drone: DroneRig, { arc = 0.95, copies = 16, phase = 0 } = {}) {
+function propBlurTexture(arc: number, size = 512) {
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const px = ((x + 0.5) / size) * 2 - 1, py = ((y + 0.5) / size) * 2 - 1;
+    const rho = Math.hypot(px, py) * PROP_R, th = Math.atan2(py, px);
+    let cover = 0;
+    if (rho > 0.026 && rho < PROP_R) {
+      const pitch = Math.min(THREE.MathUtils.degToRad(38), Math.atan(PROP_PITCH / (2 * Math.PI * rho)));
+      const w = (propChord(rho) * Math.cos(pitch)) / rho; // angular width of a blade here
+      for (const k of [0, Math.PI]) {
+        let d = th - k;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        // share of the exposure during which the blade, sweeping from 0 to `arc`, covers this angle
+        cover += Math.max(0, Math.min(arc, d + w / 2) - Math.max(0, d - w / 2)) / arc;
+      }
+    }
+    const i = (y * size + x) * 4;
+    data[i] = data[i + 1] = data[i + 2] = Math.round(Math.min(1, cover) * 255); data[i + 3] = 255;
+  }
+  const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  t.colorSpace = THREE.NoColorSpace;
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * Propellers caught mid-spin, as a camera at a short shutter (about 1/1000 s at hover speed)
+ * sees them: the blades are replaced by one disc each that carries their motion blur.
+ * `phase` turns every propeller to a new position.
+ */
+export function smearProps(drone: DroneRig, { arc = 0.6, phase = 0 } = {}) {
+  const alphaMap = propBlurTexture(arc);
   for (const pr of drone.props) {
     pr.blades.visible = false;
     const old = pr.node.getObjectByName('smear');
     if (old) pr.node.remove(old);
-    const g = new THREE.Group();
-    g.name = 'smear';
-    const mat = (pr.blades.material as THREE.MeshPhysicalMaterial).clone();
-    mat.transparent = true;
-    mat.opacity = 0.17;
-    mat.depthWrite = false;
-    for (let c = 0; c < copies; c++) {
-      const b = new THREE.Mesh(pr.blades.geometry, mat);
-      b.rotation.y = -pr.dir * (arc * c) / (copies - 1);
-      g.add(b);
-    }
-    pr.node.add(g);
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: '#16181b', roughness: 0.45, metalness: 0, clearcoat: 0.2, clearcoatRoughness: 0.4,
+      alphaMap, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const geo = new THREE.RingGeometry(0.026, PROP_R, 128, 1);
+    geo.rotateX(-Math.PI / 2);
+    if (pr.dir < 0) geo.scale(-1, 1, 1); // the sweep runs the way this propeller turns
+    const disc = new THREE.Mesh(geo, mat);
+    disc.name = 'smear';
+    disc.position.y = 0.002;
+    pr.node.add(disc);
   }
   spinProps(drone, phase);
 }

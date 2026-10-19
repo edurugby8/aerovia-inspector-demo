@@ -12,6 +12,7 @@ import {
 } from '../src/experience/models/turbine';
 import { droneState, gimbalAngles, gimbalTarget } from '../src/experience/trajectory';
 import { skyTexture } from './sky';
+import { studioLighting } from './studio';
 import { bladeSkin, erosionMaps, skinTransform, smearProps } from './surfaces';
 
 /** Towards the sun: low (≈13°), in front of the rotor and a little to the side of blade B. */
@@ -44,11 +45,19 @@ export type PropLook = 'still' | 'smear';
 /** A photographed sky (environment.ts) turned about +y; it carries its own sun. */
 export interface RealSky { texture: THREE.Texture; rotation: number; intensity?: number }
 
-export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky }: { sunDir?: THREE.Vector3; props?: PropLook; sky?: RealSky } = {}) {
+/**
+ * `studio`: the multi-page redesign's look — only the inspected blade (B) and the drone, lit
+ * by studio softboxes in front of a deep navy backdrop (studio.ts); no tower, nacelle or sky.
+ */
+export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky, studio = false, lite = false }: { sunDir?: THREE.Vector3; props?: PropLook; sky?: RealSky; studio?: boolean; lite?: boolean } = {}) {
   const mats = createMaterials();
   const scene = new THREE.Scene();
   let sun: THREE.DirectionalLight | null = null;
-  if (sky) {
+  if (studio) {
+    const light = studioLighting();
+    scene.background = light.backdrop;
+    scene.environment = light.environment;
+  } else if (sky) {
     scene.background = sky.texture;
     scene.environment = sky.texture;
     scene.backgroundRotation.set(0, sky.rotation, 0);
@@ -68,7 +77,8 @@ export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky }: {
   // orange peel in the top coat
   const peel = gelcoatNormal();
   peel.repeat.set(60, 3);
-  const skin = bladeSkin();
+  // `lite`: coarser paint maps for quick raster previews
+  const skin = bladeSkin(lite ? { w: 1024, h: 256 } : {});
   const blade = new THREE.MeshPhysicalMaterial({
     color: '#ffffff', map: skinTransform(skin.map), roughness: 1, roughnessMap: skinTransform(skin.roughnessMap), metalness: 0,
     normalMap: skinTransform(skin.normalMap), normalScale: new THREE.Vector2(1, 1),
@@ -82,20 +92,22 @@ export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky }: {
   const m = mats.turbine;
   const g = new THREE.Group();
   const add = (parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material) => { const x = new THREE.Mesh(geo, mat); parent.add(x); return x; };
-  add(g, buildTowerGeometry(96), m.tower);
-  const top = new THREE.Group();
-  top.position.y = TURBINE.towerTop;
-  add(top, buildNacelleGeometry(96), m.nacelle);
-  add(top, buildNacelleDetails(), m.steel);
-  add(top, buildNacelleSeams(), m.seam);
-  for (const [x, y, z] of OBSTRUCTION_LIGHTS) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 12), m.lamp); l.position.set(x, y, z); top.add(l); }
-  g.add(top);
+  if (!studio) {
+    add(g, buildTowerGeometry(96), m.tower);
+    const top = new THREE.Group();
+    top.position.y = TURBINE.towerTop;
+    add(top, buildNacelleGeometry(96), m.nacelle);
+    add(top, buildNacelleDetails(), m.steel);
+    add(top, buildNacelleSeams(), m.seam);
+    for (const [x, y, z] of OBSTRUCTION_LIGHTS) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 12), m.lamp); l.position.set(x, y, z); top.add(l); }
+    g.add(top);
+  }
   const rotor = decompose(new THREE.Group(), rotorMatrix());
-  add(rotor, buildSpinnerGeometry(96), m.nacelle);
+  if (!studio) add(rotor, buildSpinnerGeometry(96), m.nacelle);
   const geo = buildBladeGeometry({ ring: 144, spanScale: 2.5 });
   geo.surface.computeTangents();
   const receptors = buildReceptors();
-  for (const id of BLADES) {
+  for (const id of studio ? (['B'] as const) : BLADES) {
     const b = decompose(new THREE.Group(), bladeMatrix(id));
     add(b, geo.surface, blade); add(b, geo.te, m.bladeEdge); add(b, receptors, m.receptor);
     if (id === DEFECT.blade) add(b, buildBladePatch(DEFECT.span[0], DEFECT.span[1], DEFECT.chord[0], DEFECT.chord[1], { nr: 48, nq: 96, offset: 0.002 }), erosion);

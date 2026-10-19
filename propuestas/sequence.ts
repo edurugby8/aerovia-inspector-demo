@@ -10,6 +10,7 @@ import { rng } from '../src/experience/math';
 import { aimAt } from './aim';
 import { skyFromQuery } from './environment';
 import { COVER, COVER_MOBILE, SUN, poseAt } from './motion';
+import { studioPoseAt } from './motion-studio';
 import { buildProposalScene } from './scene';
 import { spinProps } from './surfaces';
 
@@ -29,14 +30,17 @@ renderer.toneMappingExposure = Number(q.get('exp') ?? 1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-const { scene, drone, poseDrone } = buildProposalScene({ sunDir: SUN.clone(), sky: await skyFromQuery(q) });
+const { scene, drone, poseDrone } = buildProposalScene({ sunDir: SUN.clone(), sky: await skyFromQuery(q), studio: q.get('studio') === '1' });
 const camera = new THREE.PerspectiveCamera(start.fov, W / H, 0.05, 20000);
 // a new, unrelated propeller phase each frame, as a short shutter catches a spinning rotor;
 // derived from the frame number so a resumed run renders the same frames
 const seed = Number(q.get('seed') ?? 5);
 
+// motion=studio: the inspection pass along blade B in the studio (motion-studio.ts)
+const motion = q.get('motion') === 'studio' ? studioPoseAt : (t: number) => poseAt(t, start);
+
 function place(t: number, i = 0) {
-  const p = poseAt(t, start);
+  const p = motion(t);
   poseDrone(0.63, { position: p.drone, yaw: Math.atan2(p.look.x - p.drone.x, p.look.z - p.drone.z), look: p.look });
   spinProps(drone, rng(seed * 7919 + i)() * Math.PI * 2);
   drone.root.updateMatrixWorld(true);

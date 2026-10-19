@@ -1,6 +1,6 @@
 # Recursos: origen, autoría y licencia
 
-No se ha descargado ningún modelo, textura, HDRI ni imagen de terceros. Todo lo visual es trabajo propio de este repositorio o deriva del logo que entregó el cliente. Las únicas piezas de terceros son tipografías y bibliotecas de código, todas con licencia compatible.
+No se ha descargado ningún modelo, textura ni imagen de terceros. El único recurso visual de terceros es un HDRI CC0, y solo lo usan los renders de las propuestas: no forma parte de la web (detalle en «Propuestas de rediseño»). El resto de lo visual es trabajo propio de este repositorio o deriva del logo que entregó el cliente. Las demás piezas de terceros son tipografías y bibliotecas de código, todas con licencia compatible.
 
 El repositorio no incluye un archivo LICENSE: los derechos sobre el código y los recursos propios los decide su titular.
 
@@ -81,6 +81,16 @@ El logo se muestra sobre una placa clara del mismo tono que su fondo (#fbfaf8) p
 | Vite, Vitest, TypeScript, puppeteer-core (desarrollo) | Sus autores | MIT / Apache-2.0 |
 
 Las versiones exactas están en `package.json` y `package-lock.json`.
+
+## Propuestas de rediseño (`propuestas/`, fuera de la build)
+
+| Recurso | Origen | Licencia |
+| --- | --- | --- |
+| Luz de estudio y fondo azul marino | Generados en código: [propuestas/studio.ts](propuestas/studio.ts) | Propio |
+| Superficie de la pala, erosión de ejemplo y desenfoque de hélices | Generados en código: [propuestas/surfaces.ts](propuestas/surfaces.ts) | Propio |
+| «Evening Road 01 (Pure Sky)», `evening_road_01_puresky_4k.hdr` (18 692 813 bytes, MD5 `3461499a68e8fe03ec42592f4bc2d5ef`) | Poly Haven; Sergej Majboroda (original) y Jarod Guest (retoque del cielo) | CC0: uso comercial y redistribución permitidos, sin atribución obligatoria (verificado en polyhaven.com/license el 15/10/2026) |
+
+El HDRI se descargó con autorización el 16/10/2026 para los renders de la portada A revisada. No se sube al repositorio: lo descarga y verifica [scripts/descargar-hdri.mjs](scripts/descargar-hdri.mjs) en `propuestas/hdri/`. La dirección de estudio del rediseño multipágina no lo usa.
 
 ## Qué haría falta para el fotorrealismo
 
