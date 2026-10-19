@@ -5,3 +5,5 @@ dist
 coverage
 # browser test output (screenshots worth keeping go to docs/screenshots)
 e2e/out
+# the CC0 sky for the proposal renders, fetched by scripts/descargar-hdri.mjs (18.7 MB)
+propuestas/hdri

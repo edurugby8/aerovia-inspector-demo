@@ -13,7 +13,7 @@ const w = Number(arg('w', '1280')), h = Number(arg('h', '800'));
 const out = path.resolve(arg('out', 'e2e/out/secuencia'));
 await fs.mkdir(out, { recursive: true });
 const params = new URLSearchParams({ w: String(w), h: String(h), spp: arg('spp', '192') });
-for (const k of ['mode', 'start', 'exp', 'seed']) { const val = arg(k, null); if (val !== null) params.set(k, val); }
+for (const k of ['mode', 'start', 'exp', 'seed', 'sky', 'skyaz', 'skyexp']) { const val = arg(k, null); if (val !== null) params.set(k, val); }
 
 const browser = await launchBrowser(['--force_high_performance_gpu', '--enable-unsafe-webgpu', '--disable-gpu-watchdog']);
 const page = await browser.newPage();

@@ -41,18 +41,28 @@ function gelcoatNormal() {
 }
 
 export type PropLook = 'still' | 'smear';
+/** A photographed sky (environment.ts) turned about +y; it carries its own sun. */
+export interface RealSky { texture: THREE.Texture; rotation: number; intensity?: number }
 
-export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear' }: { sunDir?: THREE.Vector3; props?: PropLook } = {}) {
+export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky }: { sunDir?: THREE.Vector3; props?: PropLook; sky?: RealSky } = {}) {
   const mats = createMaterials();
   const scene = new THREE.Scene();
-  const sky = skyTexture({ sun: sunDir, width: 4096 });
-  scene.background = sky;
-  scene.environment = sky;
-
-  const sun = new THREE.DirectionalLight(new THREE.Color(1, 0.93, 0.84), 3.4);
-  sun.position.copy(sunDir).normalize().multiplyScalar(400);
-  sun.target.position.set(0, 100, 0);
-  scene.add(sun, sun.target);
+  let sun: THREE.DirectionalLight | null = null;
+  if (sky) {
+    scene.background = sky.texture;
+    scene.environment = sky.texture;
+    scene.backgroundRotation.set(0, sky.rotation, 0);
+    scene.environmentRotation.set(0, sky.rotation, 0);
+    scene.backgroundIntensity = scene.environmentIntensity = sky.intensity ?? 1;
+  } else {
+    const procedural = skyTexture({ sun: sunDir, width: 4096 });
+    scene.background = procedural;
+    scene.environment = procedural;
+    sun = new THREE.DirectionalLight(new THREE.Color(1, 0.93, 0.84), 3.4);
+    sun.position.copy(sunDir).normalize().multiplyScalar(400);
+    sun.target.position.set(0, 100, 0);
+    scene.add(sun, sun.target);
+  }
 
   // close-up paint: semi-gloss coating with its protection tape and wear (surfaces.ts), fine
   // orange peel in the top coat

@@ -1,6 +1,6 @@
 # Rediseño de la portada: dos direcciones para elegir
 
-> **Segunda entrega:** la dirección A revisada (portada en escritorio y móvil, prueba de movimiento y HDRI identificado) está en [revision-a.md](revision-a.md). Este documento recoge la primera entrega tal como se presentó.
+> **Segunda entrega:** la dirección A revisada (portada en escritorio y móvil y prueba de movimiento, ya con el cielo HDRI CC0) está en [revision-a.md](revision-a.md). Este documento recoge la primera entrega tal como se presentó.
 
 Primera entrega del rediseño: un análisis de la demo publicada y dos portadas de alta fidelidad, cada una en escritorio y en móvil. Todavía no se reconstruye la web; se hará con la dirección que se elija.
 

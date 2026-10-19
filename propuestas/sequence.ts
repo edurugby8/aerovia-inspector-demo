@@ -8,6 +8,7 @@ import { WebGPURenderer } from 'three/webgpu';
 import { WebGPUPathTracer } from 'three-gpu-pathtracer/webgpu';
 import { rng } from '../src/experience/math';
 import { aimAt } from './aim';
+import { skyFromQuery } from './environment';
 import { COVER, COVER_MOBILE, SUN, poseAt } from './motion';
 import { buildProposalScene } from './scene';
 import { spinProps } from './surfaces';
@@ -28,7 +29,7 @@ renderer.toneMappingExposure = Number(q.get('exp') ?? 1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-const { scene, drone, poseDrone } = buildProposalScene({ sunDir: SUN.clone() });
+const { scene, drone, poseDrone } = buildProposalScene({ sunDir: SUN.clone(), sky: await skyFromQuery(q) });
 const camera = new THREE.PerspectiveCamera(start.fov, W / H, 0.05, 20000);
 // a new, unrelated propeller phase each frame, as a short shutter catches a spinning rotor;
 // derived from the frame number so a resumed run renders the same frames

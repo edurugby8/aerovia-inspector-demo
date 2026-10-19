@@ -7,6 +7,7 @@ import { DEFECT, bladeSurfaceWorld } from '../src/experience/models/turbine';
 import { HUB } from '../src/experience/trajectory';
 import { aimAt } from './aim';
 import { parseHover } from './hover';
+import { skyFromQuery } from './environment';
 import { buildProposalScene, type PropLook } from './scene';
 import { SHOTS, type Format, type ShotName } from './shots';
 
@@ -27,7 +28,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 const sunQ = q.get('sun')?.split(',').map(Number);
-const { scene, poseDrone } = buildProposalScene({ ...(sunQ ? { sunDir: new THREE.Vector3(sunQ[0], sunQ[1], sunQ[2]) } : {}), props: (q.get('props') ?? 'smear') as PropLook });
+const { scene, poseDrone } = buildProposalScene({ ...(sunQ ? { sunDir: new THREE.Vector3(sunQ[0], sunQ[1], sunQ[2]) } : {}), props: (q.get('props') ?? 'smear') as PropLook, sky: await skyFromQuery(q) });
 const shot = SHOTS[name][fmt];
 renderer.toneMappingExposure = Number(q.get('exp') ?? shot.exposure);
 const pose = poseDrone(shot.p, parseHover(q.get('hover')));
