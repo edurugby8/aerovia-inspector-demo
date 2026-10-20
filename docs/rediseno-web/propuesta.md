@@ -1,5 +1,7 @@
 # AEROVIA INSPECTOR: web multipágina, propuesta visual
 
+> **Revisión 2 (20/10/2026):** dron y pala mejorados, momento 3 como acercamiento real, accesos de Inicio con más presencia y las seis páginas construidas. Ver [revision-2.md](revision-2.md). Lo que sigue es la primera entrega, tal como se presentó.
+
 Primera entrega de la nueva dirección: un dron y un tramo de pala sobre fondo azul marino de estudio, y una web con páginas independientes. **Es una propuesta para aprobar.** Todavía no se han reconstruido las páginas ni se ha producido la secuencia larga. Todo está en la rama `feature/aerovia-multipagina`: no se ha fusionado ni publicado nada, y no se ha tocado Aerflora ni la web original del cliente.
 
 Las imágenes son renders con trazado de rayos de la escena 3D del proyecto, no fotomontajes.

@@ -10,7 +10,7 @@ const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split('
 const base = arg('url', 'http://localhost:5174/aerovia-inspector-demo/');
 const w = Number(arg('w', '1600')), h = Number(arg('h', '900'));
 const params = new URLSearchParams();
-for (const k of ['shot', 'fmt', 'w', 'h', 'spp', 'mode', 'cam', 'camOn', 'look', 'aim', 'fov', 'tm', 'exp', 'hover', 'sun', 'roll', 'props', 'sky', 'skyaz', 'skyexp', 'studio', 'camAround', 'target']) { const val = arg(k, null); if (val !== null) params.set(k, val); }
+for (const k of ['shot', 'fmt', 'w', 'h', 'spp', 'mode', 'cam', 'camOn', 'look', 'aim', 'fov', 'tm', 'exp', 'hover', 'sun', 'roll', 'props', 'sky', 'skyaz', 'skyexp', 'studio', 'camAround', 'target', 'fstop', 'focus']) { const val = arg(k, null); if (val !== null) params.set(k, val); }
 params.set('w', String(w)); params.set('h', String(h));
 const out = path.resolve(arg('out', `e2e/out/propuesta-${arg('shot', 'a')}-${arg('fmt', 'wide')}-${arg('mode', 'pt')}.png`));
 await fs.mkdir(path.dirname(out), { recursive: true });
@@ -20,6 +20,9 @@ const webgpu = arg('api', 'webgpu') === 'webgpu';
 const flags = webgpu ? ['--force_high_performance_gpu', '--enable-unsafe-webgpu', '--disable-gpu-watchdog'] : ['--force_high_performance_gpu', `--use-angle=${arg('angle', 'd3d11')}`];
 const browser = await launchBrowser(flags);
 const page = await browser.newPage();
+// no hot reload: an edit to the sources while a frame renders must not restart it
+await page.setRequestInterception(true);
+page.on('request', (r) => (r.url().includes('/@vite/client') ? r.abort() : r.continue()));
 await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));

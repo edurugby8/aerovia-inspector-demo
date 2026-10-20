@@ -55,6 +55,9 @@ export function createMaterials() {
   carbonMap.repeat.set(1, 6); carbonNormal.repeat.set(1, 6);
   const grain = normalFromHeight(256, 256, (x, y) => n(x / 3.1, y / 3.1, 2) * 0.6 + n(x / 11, y / 11) * 0.4, 0.9);
   grain.repeat.set(3, 3);
+  // the same grain much finer, for moulded covers seen from close by
+  const fineGrain = grain.clone();
+  fineGrain.repeat.set(12, 12);
   const paintRough = canvasTexture(512, 512, (x, y) => {
     // long, soft streaks along the span plus fine mottling: no two metres look identical
     const v = 0.5 + n(x / 140, y / 6, 3) * 0.35 + n(x / 9, y / 9, 2) * 0.12;
@@ -64,16 +67,18 @@ export function createMaterials() {
 
   const phys = (p: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial(p);
   const drone: DroneMaterials = {
-    body: phys({ color: '#363b42', roughness: 0.5, metalness: 0, clearcoat: 0.2, clearcoatRoughness: 0.5, normalMap: grain, normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.3 }),
-    shell: phys({ color: '#434951', roughness: 0.4, metalness: 0, clearcoat: 0.4, clearcoatRoughness: 0.3, normalMap: grain, normalScale: new THREE.Vector2(0.25, 0.25), envMapIntensity: 1.35 }),
-    light: phys({ color: '#8e959d', roughness: 0.48, metalness: 0, clearcoat: 0.2, clearcoatRoughness: 0.5, normalMap: grain, normalScale: new THREE.Vector2(0.3, 0.3) }),
+    // satin polymer: a fine grain under a thin clear layer, so studio lights draw clean highlights
+    body: phys({ color: '#383e46', roughness: 0.46, metalness: 0, clearcoat: 0.32, clearcoatRoughness: 0.28, normalMap: fineGrain, normalScale: new THREE.Vector2(0.06, 0.06), envMapIntensity: 1.3 }),
+    shell: phys({ color: '#4a5159', roughness: 0.36, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.16, normalMap: fineGrain, normalScale: new THREE.Vector2(0.04, 0.04), envMapIntensity: 1.35 }),
+    light: phys({ color: '#747c85', roughness: 0.42, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.3, normalMap: fineGrain, normalScale: new THREE.Vector2(0.1, 0.1), envMapIntensity: 1.3 }),
     carbon: phys({ color: '#ffffff', map: carbonMap, roughness: 0.34, metalness: 0, clearcoat: 0.85, clearcoatRoughness: 0.16, normalMap: carbonNormal, normalScale: new THREE.Vector2(0.55, 0.55), envMapIntensity: 1.4 }),
     alu: phys({ color: '#a6adb4', roughness: 0.3, metalness: 1, envMapIntensity: 1.25 }),
     aluDark: phys({ color: '#50575f', roughness: 0.34, metalness: 1, envMapIntensity: 1.25 }),
     prop: phys({ color: '#141518', roughness: 0.44, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.4 }),
     rubber: phys({ color: '#18191b', roughness: 0.88, metalness: 0 }),
     glass: phys({ color: '#06080b', roughness: 0.03, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6 }),
-    iris: phys({ color: '#14243b', roughness: 0.22, metalness: 0.7, side: THREE.DoubleSide }),
+    // the lens coating reads blue-violet where it catches a light
+    iris: phys({ color: '#1d2c5c', roughness: 0.14, metalness: 0.8, side: THREE.DoubleSide }),
     accent: phys({ color: '#0c4a80', roughness: 0.42, metalness: 0.1, clearcoat: 0.4, clearcoatRoughness: 0.3 }),
     ledRed: new THREE.MeshStandardMaterial({ color: '#2a0505', emissive: '#ff3322', emissiveIntensity: 1.6 }),
     ledGreen: new THREE.MeshStandardMaterial({ color: '#052a10', emissive: '#22ff66', emissiveIntensity: 1.3 }),

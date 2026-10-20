@@ -1,5 +1,5 @@
 // Quick raster views of the proposal scene, built once in one page (propuestas/views.ts):
-//   node scripts/propuestas-vistas.mjs <views.json> <out.jpg> [--studio=1] [--height=260]
+//   node scripts/propuestas-vistas.mjs <views.json> <out.jpg> [--studio=1] [--lite=0] [--height=260]
 // views.json: [{ "name": "h1", "w": 800, "h": 500, "hover": "B:44,1.2,4.6,auto,44,0.47", "camAround": [-70, 10, 4], "aim": [0.6, 0.45], "fov": 40 }]
 // Writes every view to e2e/out/vistas/<name>.png and a contact sheet to <out.jpg>.
 import fs from 'node:fs/promises';
@@ -13,11 +13,14 @@ const dir = path.resolve('e2e/out/vistas');
 await fs.mkdir(dir, { recursive: true });
 const browser = await launchBrowser(['--force_high_performance_gpu']);
 const page = await browser.newPage();
+// no hot reload: an edit to the sources while a frame renders must not restart it
+await page.setRequestInterception(true);
+page.on('request', (r) => (r.url().includes('/@vite/client') ? r.abort() : r.continue()));
 // a module that fails to load (a 500 from the dev server) leaves the page waiting forever: stop at once
 let failed = '';
 page.on('pageerror', (e) => { failed ||= String(e); });
 page.on('response', (r) => { if (r.status() >= 400) failed ||= `${r.status()} ${r.url()}`; });
-await page.goto(`http://localhost:5174/aerovia-inspector-demo/propuestas/views.html?studio=${arg('studio', '1')}`, { waitUntil: 'domcontentloaded', timeout: 180000 });
+await page.goto(`http://localhost:5174/aerovia-inspector-demo/propuestas/views.html?studio=${arg('studio', '1')}&lite=${arg('lite', '1')}`, { waitUntil: 'domcontentloaded', timeout: 180000 });
 for (const t0 = Date.now(); !(await page.evaluate(() => !!window.__ready)); await new Promise((r) => setTimeout(r, 300))) {
   if (failed) { console.log('page failed:', failed); await browser.close(); process.exit(1); }
   if (Date.now() - t0 > 300000) { console.log('timed out waiting for the scene'); await browser.close(); process.exit(1); }

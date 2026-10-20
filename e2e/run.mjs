@@ -1,17 +1,32 @@
-// Browser checks for the brief, best run against the production build:
-//   npm run build && npm run preview          (serves http://localhost:4174/aerovia-inspector-demo/)
-//   node e2e/run.mjs [--url=…] [--only=load,acts,scroll,anchors,keyboard,form,fallbacks,pause,resize]
-// Every check prints PASS or FAIL; the exit code is 1 if anything failed.
+// Browser checks for the multi-page site, against the production build served the way GitHub
+// Pages serves it (e2e/pages-server.mjs: folders, redirects to the final slash, the 404 page):
+//   npm run build && node e2e/run.mjs [--only=pages,history,menu,nojs,player,reduced,layout] [--shots=docs/screenshots]
+//   node e2e/run.mjs --url=https://…/aerovia-inspector-demo/      (any other server, e.g. the real one)
+// Every check prints PASS or FAIL; the exit code is 1 if anything failed. With --shots it also
+// saves a desktop and a phone screenshot of every page.
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { launchBrowser } from '../scripts/browser.mjs';
-import { ACT_STILLS } from '../src/experience/config.ts';
+import { startPagesServer } from './pages-server.mjs';
 
 const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
-const BASE = arg('url', 'http://localhost:4174/aerovia-inspector-demo/');
+const SITE_BASE = process.env.BASE_PATH ?? '/aerovia-inspector-demo/';
+const server = arg('url', '') ? null : await startPagesServer({ base: SITE_BASE, port: 4175 });
+const BASE = arg('url', `http://localhost:4175${SITE_BASE}`);
+const BASE_PATH = new URL(BASE).pathname;
 const ONLY = arg('only', '').split(',').filter(Boolean);
-const REQUIRED = [[1440, 900], [1920, 1080], [390, 844]];
-// more shapes for the framing checks: laptop, small laptop, tablet both ways, small and tall phones
-const EXTRA = [[1280, 720], [1366, 768], [1024, 768], [768, 1024], [375, 667], [412, 915], [960, 540]];
-const STILLS = Object.values(ACT_STILLS);
+const SHOTS = arg('shots', '');
+const run = (name) => !ONLY.length || ONLY.includes(name);
+const PAGES = [
+  { path: '', h1: 'Inspección aérea. Criterio de ingeniería.', label: 'Inicio', shot: 'inicio' },
+  { path: 'servicios/', h1: 'Inspección visual con drones para activos en altura', label: 'Servicios', shot: 'servicios' },
+  { path: 'inspeccion-eolica/', h1: 'Así se inspecciona una pala', label: 'Inspección eólica', shot: 'inspeccion-eolica' },
+  { path: 'como-trabajamos/', h1: 'Cuatro fases, un mismo orden', label: 'Cómo trabajamos', shot: 'como-trabajamos' },
+  { path: 'informes/', h1: 'Un informe ordenado para su equipo de ingeniería', label: 'Informes', shot: 'informes' },
+  { path: 'contacto/', h1: 'Solicitar presupuesto', label: 'Contacto', shot: 'contacto' },
+];
+const DESKTOP = [1440, 900], PHONE = [390, 844];
+const SIZES = [[1920, 1080], [1440, 900], [1280, 720], [1024, 768], [768, 1024], [412, 915], [390, 844], [360, 740]];
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -21,437 +36,223 @@ function check(name, ok, detail = '') {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const frames = (page, n = 3) => page.evaluate((n) => new Promise((r) => { const f = (k) => (k ? requestAnimationFrame(() => f(k - 1)) : r()); f(n); }), n);
 
-/** Counts WebGL draw calls, to tell whether the scene is rendering. Runs before the page's scripts. */
-function countDraws() {
-  window.__draws = 0;
-  for (const C of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) {
-    if (!C) continue;
-    for (const m of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
-      const f = C.prototype[m];
-      if (f) C.prototype[m] = function (...a) { window.__draws++; return f.apply(this, a); };
-    }
-  }
-}
-
 const browser = await launchBrowser();
 
-async function open([w, h], { query = '', reduced = false, wait = true, before } = {}) {
+async function open(url, [w, h] = DESKTOP, { reduced = false, js = true } = {}) {
   const page = await browser.newPage();
   const mobile = w < 800;
   await page.setViewport({ width: w, height: h, deviceScaleFactor: 1, isMobile: mobile, hasTouch: mobile });
   if (reduced) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+  if (!js) await page.setJavaScriptEnabled(false);
   const errors = [], failed = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('requestfailed', (r) => { const t = r.failure()?.errorText ?? ''; if (!/ERR_ABORTED/.test(t)) failed.push(`${t} ${r.url()}`); });
-  page.on('response', (r) => { if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`); });
-  await page.evaluateOnNewDocument(countDraws);
-  if (before) await before(page);
-  const t0 = Date.now();
-  await page.goto(BASE + query, { waitUntil: 'domcontentloaded' });
-  if (wait) await page.waitForFunction(() => document.querySelector('.xp-static') || (document.querySelector('.xp') && !document.querySelector('.load')), { timeout: 90000 });
-  return { page, errors, failed, readyMs: Date.now() - t0 };
+  page.on('response', (r) => { if (r.status() >= 400 && !r.url().endsWith('favicon.ico')) failed.push(`${r.status()} ${r.url()}`); });
+  const response = await page.goto(url, { waitUntil: 'networkidle0' });
+  return { page, errors, failed, status: response?.status() };
 }
-
-const yFor = (page, p) => page.evaluate((p) => {
-  const xp = document.querySelector('.xp');
-  return Math.round(xp.getBoundingClientRect().top + scrollY + p * (xp.offsetHeight - innerHeight));
-}, p);
-async function jump(page, y) {
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), y);
-  await frames(page, 4);
-  await sleep(60); // the on-screen observer and React may resume the frame loop a frame later
-  await frames(page, 2);
-}
-/** Waits until the page has stopped scrolling (smooth scrolls and wheel animations included). */
-async function settle(page) {
-  let last = -1, same = 0;
-  for (let i = 0; i < 120 && same < 4; i++) {
-    const y = await page.evaluate(() => scrollY);
-    same = y === last ? same + 1 : 0;
-    last = y;
-    await sleep(40);
-  }
-  await frames(page, 4);
-  return last;
-}
-/** Screen positions of the drone, hub and defect pins: a fingerprint of the camera and drone pose. */
-const pose = (page) => page.evaluate(() => [...document.querySelectorAll('.pin')].map((el) => {
-  const m = /translate3d\(([-\d.]+)px, ([-\d.]+)px/.exec(el.style.transform);
-  return m ? [Number(m[1]), Number(m[2])] : null;
+const state = (page) => page.evaluate(() => ({
+  path: location.pathname,
+  h1: document.querySelector('h1')?.textContent.trim(),
+  current: [...document.querySelectorAll('.nav [aria-current="page"]')].map((a) => a.textContent.trim()),
+  brokenImages: [...document.images].filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.currentSrc || i.src),
+  overflow: document.documentElement.scrollWidth - innerWidth,
 }));
-const poseDiff = (a, b) => Math.max(...a.map((p, i) => (p && b[i] ? Math.hypot(p[0] - b[i][0], p[1] - b[i][1]) : p === b[i] ? 0 : Infinity)));
 
-/** Text that overflows a box that clips it, and the page's horizontal overflow. */
-const clipping = (page) => page.evaluate(() => {
-  const cut = [];
-  for (const el of document.querySelectorAll('body *')) {
-    if (el.closest('.xp-stage, .visually-hidden, .skip-link')) continue;
-    const cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed') continue;
-    if (!/hidden|clip/.test(cs.overflowX + cs.overflowY) || !el.textContent.trim()) continue;
-    if (cs.clip !== 'auto' || (el.clientWidth <= 1 && el.clientHeight <= 1)) continue;
-    if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) cut.push(`${el.tagName.toLowerCase()}.${el.className}`);
+// ------------------------------------------------------------------ every page, opened directly and reloaded
+if (run('pages')) {
+  for (const p of PAGES) {
+    for (const size of [DESKTOP, PHONE]) {
+      const { page, errors, failed, status } = await open(BASE + p.path, size);
+      // load every lazy picture before counting broken ones
+      await page.evaluate(async () => { for (const i of document.images) i.loading = 'eager'; await Promise.all([...document.images].map((i) => i.decode().catch(() => null))); });
+      let s = await state(page);
+      const tag = `${p.label} ${size.join('×')}`;
+      check(`${tag}: opens directly`, (status === 200 || status === 304) && s.h1 === p.h1, `${status} ${s.h1}`);
+      check(`${tag}: menu marks it as the current page`, size === PHONE || JSON.stringify(s.current) === JSON.stringify([p.label]), s.current.join(','));
+      check(`${tag}: every picture loads`, s.brokenImages.length === 0, s.brokenImages.join(' '));
+      check(`${tag}: no horizontal scroll`, s.overflow <= 0, `${s.overflow}px`);
+      check(`${tag}: no errors or failed requests`, !errors.length && !failed.length, [...errors, ...failed].join(' | '));
+      if (size === DESKTOP) {
+        await page.reload({ waitUntil: 'networkidle0' });
+        s = await state(page);
+        check(`${tag}: survives a reload`, s.h1 === p.h1 && s.path === BASE_PATH + p.path, s.path);
+      }
+      // every address in the page lives under the site's base (assets, links, icons)
+      const outside = await page.evaluate((base) => [...document.querySelectorAll('[src],[href],[srcset]')]
+        .flatMap((e) => [e.getAttribute('src'), e.getAttribute('href'), ...(e.getAttribute('srcset') ?? '').split(',').map((s) => s.trim().split(' ')[0])])
+        .filter((u) => u && !u.startsWith('#') && !u.startsWith('data:') && !u.startsWith('mailto:') && !u.startsWith('tel:'))
+        .map((u) => new URL(u, location.href).pathname).filter((u) => !u.startsWith(base)), BASE_PATH);
+      check(`${tag}: every address is under ${BASE_PATH}`, !outside.length, outside.join(' '));
+      if (SHOTS) {
+        await fs.mkdir(SHOTS, { recursive: true });
+        const file = path.join(SHOTS, `${p.shot}-${size === DESKTOP ? 'escritorio' : 'movil'}.webp`);
+        await page.evaluate(() => scrollTo(0, 0));
+        await sleep(300);
+        await page.screenshot({ path: file, type: 'webp', quality: 82, fullPage: true });
+      }
+      await page.close();
+    }
   }
-  return { cut, overflowX: document.documentElement.scrollWidth - innerWidth };
-});
-
-/** Where the active act's blocks, the skip button, the header and the drone are on screen. */
-const actLayout = (page) => page.evaluate(() => {
-  const rect = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
-  const acts = [...document.querySelectorAll('.act')];
-  const i = acts.findIndex((a) => a.dataset.active === 'true');
-  // the drone's outline on screen (its box, propellers included), written by the scene
-  const box = document.querySelector('.pin-drone')?.dataset.box?.split(',').map(Number);
-  const labels = [...document.querySelectorAll('.pin')].filter((p) => getComputedStyle(p).visibility === 'visible').map((p) => rect(p.querySelector('.pin-label')));
-  return {
-    vw: innerWidth, vh: innerHeight, i,
-    opacity: i >= 0 ? Number(getComputedStyle(acts[i]).opacity) : 0,
-    header: document.querySelector('.site-header').getBoundingClientRect().bottom,
-    blocks: i >= 0 ? [...acts[i].children].map(rect) : [],
-    skip: rect(document.querySelector('.xp-skip')),
-    drone: box ? { l: box[0], t: box[1], r: box[2], b: box[3] } : null,
-    labels,
-  };
-});
-const overlaps = (a, b, pad = 0) => a.l < b.r + pad && b.l < a.r + pad && a.t < b.b + pad && b.t < a.b + pad;
-const fmt = (b) => [b.l, b.t, b.r, b.b].map(Math.round).join(',');
-
-async function section(name, fn) {
-  if (ONLY.length && !ONLY.includes(name)) return;
-  console.log(`\n— ${name}`);
-  try { await fn(); } catch (e) { check(`${name}: ran without exceptions`, false, String(e?.stack ?? e).split('\n')[0]); }
+  // an address that does not exist: the 404 page, with its styles and pictures, at any depth
+  for (const missing of ['no-existe/', 'servicios/no-existe/otra']) {
+    const { page, failed, status } = await open(BASE + missing);
+    const four = await page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent.trim(), styled: getComputedStyle(document.body).backgroundColor }));
+    check(`unknown address ${missing}: 404 page with the site look`, status === 404 && four.h1 === 'Página no encontrada' && four.styled === 'rgb(7, 19, 33)', `${status} ${four.h1} ${four.styled}`);
+    check(`unknown address ${missing}: its assets load`, failed.filter((f) => !f.includes('no-existe')).length === 0, failed.join(' | '));
+    await page.close();
+  }
+  // a page asked for without its final slash, as people type or paste it
+  {
+    const { page, status } = await open(BASE + 'informes');
+    const s = await state(page);
+    check('address without the final slash: lands on the page', status === 200 && s.path === BASE_PATH + 'informes/' && s.h1 === PAGES[4].h1, `${status} ${s.path}`);
+    await page.close();
+  }
 }
 
-// ------------------------------------------------------------------ load, console, resources, links
-await section('load', async () => {
-  for (const size of REQUIRED) {
-    const tag = size.join('×');
-    const { page, errors, failed, readyMs } = await open(size);
-    check(`${tag}: 3D scene ready`, await page.$('.xp-canvas canvas') !== null, `${(readyMs / 1000).toFixed(1)} s`);
-    // walk the page so lazy images load, then look for problems
-    const h = await page.evaluate(() => document.documentElement.scrollHeight);
-    for (let y = 0; y < h; y += size[1]) await jump(page, y);
-    await settle(page);
-    const broken = await page.evaluate(() => [...document.images].filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.src));
-    const missing = await page.evaluate(() => [...document.querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute('href')).filter((h) => h.length > 1 && !document.getElementById(h.slice(1))));
-    const external = await page.evaluate(() => [...document.querySelectorAll('a[href]')].map((a) => a.href).filter((h) => !h.startsWith(location.origin)));
-    const { cut, overflowX } = await clipping(page);
-    check(`${tag}: no console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
-    check(`${tag}: no missing or failed resources`, failed.length === 0, failed.slice(0, 3).join(' | '));
-    check(`${tag}: no broken images`, broken.length === 0, broken.join(' '));
-    check(`${tag}: every in-page link has a target`, missing.length === 0, missing.join(' '));
-    check(`${tag}: no links leave the site`, external.length === 0, external.join(' '));
-    check(`${tag}: no horizontal overflow`, overflowX <= 0, `${overflowX}px`);
-    check(`${tag}: no clipped text outside the stage`, cut.length === 0, cut.join(', '));
-    if (size[0] < 800) {
-      const small = await page.evaluate(() => [...document.querySelectorAll('a[href], button, input, select, textarea')].filter((el) => {
-        if (el.closest('.visually-hidden, .skip-link')) return false;
-        const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-        return cs.visibility !== 'hidden' && cs.display !== 'none' && r.width > 0 && (r.height < 44 || r.width < 44);
-      }).map((el) => `${el.tagName.toLowerCase()}.${el.className} ${Math.round(el.getBoundingClientRect().width)}×${Math.round(el.getBoundingClientRect().height)}`));
-      check(`${tag}: touch targets at least 44×44 px`, small.length === 0, small.join(', '));
+// ------------------------------------------------------------------ menu, back and forward
+if (run('history')) {
+  const { page, errors } = await open(BASE);
+  const go = async (label) => { await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), page.evaluate((l) => [...document.querySelectorAll('.nav a')].find((a) => a.textContent.trim() === l).click(), label)]); return state(page); };
+  const visited = [];
+  for (const p of [PAGES[1], PAGES[2], PAGES[4], PAGES[5]]) { const s = await go(p.label); visited.push(s.path); check(`menu → ${p.label}`, s.path === BASE_PATH + p.path && s.h1 === p.h1, s.path); }
+  for (const p of [PAGES[4], PAGES[2], PAGES[1], PAGES[0]]) {
+    await page.goBack({ waitUntil: 'networkidle0' });
+    const s = await state(page);
+    check(`back → ${p.label}`, s.path === BASE_PATH + p.path && s.h1 === p.h1, s.path);
+  }
+  for (const p of [PAGES[1], PAGES[2]]) {
+    await page.goForward({ waitUntil: 'networkidle0' });
+    const s = await state(page);
+    check(`forward → ${p.label}`, s.path === BASE_PATH + p.path && s.h1 === p.h1, s.path);
+  }
+  check('history: no errors', !errors.length, errors.join(' | '));
+  await page.close();
+}
+
+// ------------------------------------------------------------------ the narrow-screen menu, with and without JavaScript
+if (run('menu') || run('nojs')) {
+  for (const js of [true, false]) {
+    const { page } = await open(BASE + 'servicios/', PHONE, { js });
+    const tag = js ? 'phone menu' : 'phone menu without JavaScript';
+    const closed = await page.evaluate(() => getComputedStyle(document.querySelector('.nav-mobile__panel')).display === 'none' || !document.querySelector('.nav-mobile').open);
+    await page.click('.nav-mobile summary');
+    await sleep(200);
+    const links = await page.evaluate(() => [...document.querySelectorAll('.nav-mobile__panel li a')].filter((a) => a.getBoundingClientRect().height > 0).map((a) => a.textContent.trim()));
+    check(`${tag}: opens and lists the six pages`, closed && links.length === 6, links.join(','));
+    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), page.evaluate(() => [...document.querySelectorAll('.nav-mobile__panel li a')].find((a) => a.textContent.trim() === 'Informes').click())]);
+    const s = await state(page);
+    check(`${tag}: opens a page`, s.path === BASE_PATH + 'informes/', s.path);
+    if (js) {
+      await page.click('.nav-mobile summary');
+      await page.keyboard.press('Escape');
+      check(`${tag}: closes with Escape`, await page.evaluate(() => !document.querySelector('.nav-mobile').open));
     }
     await page.close();
   }
-});
+  const { page } = await open(BASE + 'inspeccion-eolica/', DESKTOP, { js: false });
+  const shown = await page.evaluate(() => [...document.querySelectorAll('.moment__media img')].filter((i) => i.getBoundingClientRect().height > 100).length);
+  check('inspection without JavaScript: every moment shows its picture', shown === 4, `${shown}`);
+  await page.close();
+}
 
-// ------------------------------------------------------------------ framing of the four acts
-await section('acts', async () => {
-  for (const size of [...REQUIRED, ...EXTRA]) {
-    const tag = size.join('×');
-    const { page, errors } = await open(size, { query: '?still' });
-    if (await page.$('.xp-static')) { check(`${tag}: static version (window too low for the stage)`, true); await page.close(); continue; }
-    for (const [k, p] of STILLS.entries()) {
-      await jump(page, await yFor(page, p));
-      const L = await actLayout(page);
-      const name = `${tag} act ${k + 1}`;
-      const inside = L.blocks.every((b) => b.l >= -1 && b.r <= L.vw + 1 && b.t >= L.header - 1 && b.b <= L.vh + 1);
-      check(`${name}: shown alone and fully opaque`, L.i === k && L.opacity > 0.99, `active ${L.i + 1}, opacity ${L.opacity}`);
-      check(`${name}: texts inside the screen, below the header`, inside, JSON.stringify(L.blocks.map((b) => [b.l, b.t, b.r, b.b].map(Math.round))));
-      check(`${name}: texts clear of the skip button`, L.blocks.every((b) => !overlaps(b, L.skip, 8)), `skip ${fmt(L.skip)} texts ${L.blocks.map(fmt).join(' ')}`);
-      if (k < 3 && L.drone) check(`${name}: no text over the drone`, L.blocks.every((b) => !overlaps(L.drone, b, 8)), `drone ${fmt(L.drone)} texts ${L.blocks.map(fmt).join(' ')}`);
-      if (k === 3) check(`${name}: report card and text do not overlap`, L.blocks.length < 2 || !overlaps(L.blocks[0], L.blocks[1]));
-      check(`${name}: scene labels inside the screen`, L.labels.every((b) => b.l >= 0 && b.r <= L.vw && b.t >= 0 && b.b <= L.vh), JSON.stringify(L.labels.map((b) => [b.l, b.r].map(Math.round))));
-    }
-    check(`${tag}: no console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
-    await page.close();
-  }
-});
-
-// ------------------------------------------------------------------ scroll: slow, fast, reverse, stop
-await section('scroll', async () => {
-  for (const size of [[1440, 900], [390, 844]]) {
-    const tag = size.join('×');
-    const { page } = await open(size, { query: '?still' });
-    await page.mouse.move(size[0] / 2, size[1] / 2);
-    // slow, by wheel, into the inspection act
-    const target = await yFor(page, 0.6);
-    for (let y = 0; y < target; y += 90) { await page.mouse.wheel({ deltaY: 90 }); await sleep(30); }
-    const y1 = await settle(page);
-    const a = await pose(page);
-    await sleep(700);
-    const a2 = await pose(page);
-    check(`${tag}: the scene stops when the scroll stops`, poseDiff(a, a2) < 0.5, `moved ${poseDiff(a, a2).toFixed(2)}px in 0.7 s`);
-    // fast forward to the end, then fast back, then land on the same position
-    for (let i = 0; i < 6; i++) await page.mouse.wheel({ deltaY: 2400 });
-    await settle(page);
-    for (let i = 0; i < 4; i++) await page.mouse.wheel({ deltaY: -2400 });
-    await settle(page);
-    await jump(page, y1);
-    const b = await pose(page);
-    check(`${tag}: same frame after fast scroll back and forth`, poseDiff(a, b) < 0.5, `${poseDiff(a, b).toFixed(2)}px`);
-    // slow reverse from the end of the track
-    await jump(page, await yFor(page, 1));
-    for (let i = 0; i < 30; i++) { await page.mouse.wheel({ deltaY: -90 }); await sleep(30); }
-    await settle(page);
-    await jump(page, y1);
-    const c = await pose(page);
-    check(`${tag}: same frame after slow reverse scroll`, poseDiff(a, c) < 0.5, `${poseDiff(a, c).toFixed(2)}px`);
-    // every act along the way, both directions
-    const fwd = [], back = [];
-    for (const p of STILLS) { await jump(page, await yFor(page, p)); fwd.push(await pose(page)); }
-    for (const p of [...STILLS].reverse()) { await jump(page, await yFor(page, p)); back.unshift(await pose(page)); }
-    const worst = Math.max(...fwd.map((f, i) => poseDiff(f, back[i])));
-    check(`${tag}: each act frames the same forwards and backwards`, worst < 0.5, `${worst.toFixed(2)}px`);
-    await page.close();
-  }
-});
-
-// ------------------------------------------------------------------ anchors, skip links, menu
-await section('anchors', async () => {
-  {
-    const { page } = await open([1440, 900]);
-    const header = await page.$eval('.site-header', (el) => el.offsetHeight);
-    for (const href of ['#servicios', '#proceso', '#informe', '#contacto', '#inspeccion']) {
-      await page.click(`.menu a[href="${href}"]`);
-      await settle(page);
-      const r = await page.evaluate((href) => {
-        const el = document.querySelector(href);
-        return { top: el.getBoundingClientRect().top, y: scrollY, hash: location.hash, focus: document.activeElement === el, start: el.dataset.top === 'start' };
-      }, href);
-      const ok = r.start ? r.y === 0 : Math.abs(r.top - header) <= 2;
-      check(`menu ${href}: lands below the header and takes focus`, ok && r.hash === href && r.focus, JSON.stringify(r));
-    }
-    await jump(page, 0);
-    await page.click('.act-1 .btn-primary');
-    await settle(page);
-    check('hero CTA «Solicitar inspección» goes to the form', await page.evaluate(() => location.hash === '#contacto' && Math.abs(document.querySelector('#contacto').getBoundingClientRect().top - document.querySelector('.site-header').offsetHeight) <= 2));
-    await jump(page, 0);
-    await page.click('.act-1 .btn-ghost');
-    await settle(page);
-    check('hero CTA «Ver el proceso» goes to the process', await page.evaluate(() => location.hash === '#proceso'));
-    await jump(page, 0);
-    await page.click('.xp-skip');
-    await settle(page);
-    check('«Saltar la experiencia» goes past the 3D track', await page.evaluate(() => location.hash === '#servicios' && document.querySelector('#servicios').getBoundingClientRect().top < innerHeight / 2));
-    await page.close();
-  }
-  {
-    // the first Tab reaches the skip link, which is visible and skips the experience
-    const { page } = await open([1440, 900]);
-    await page.keyboard.press('Tab');
-    await sleep(300); // it slides in
-    const skip = await page.evaluate(() => { const el = document.activeElement; const r = el.getBoundingClientRect(); return { cls: el.className, visible: r.top >= 0 && r.bottom <= innerHeight }; });
-    check('first Tab: visible «Saltar al contenido» link', skip.cls.includes('skip-link') && skip.visible, JSON.stringify(skip));
-    await page.keyboard.press('Enter');
-    await settle(page);
-    check('skip link moves focus to the content after the experience', await page.evaluate(() => document.activeElement?.id === 'servicios' && location.hash === '#servicios'));
-    await page.close();
-  }
-  {
-    // a hash in the URL on arrival
-    // (the 3D stage is off screen, so it waits to draw: nothing to wait for here)
-    const { page } = await open([1440, 900], { query: '#informe', wait: false });
-    await page.waitForFunction(() => scrollY > 0, { timeout: 30000 });
-    await settle(page);
-    check('arriving with #informe lands on the report', await page.evaluate(() => Math.abs(document.querySelector('#informe').getBoundingClientRect().top - document.querySelector('.site-header').offsetHeight) <= 2));
-    await page.close();
-  }
-  {
-    const { page } = await open([390, 844]);
-    const hidden = await page.$eval('#menu', (el) => getComputedStyle(el).visibility);
-    check('mobile: closed menu is hidden from the tab order', hidden === 'hidden');
-    const order = [];
-    for (let i = 0; i < 4; i++) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement.className || document.activeElement.tagName)); }
-    check('mobile: Tab skips the closed menu links', !order.some((c) => c === 'A' || /menu-cta/.test(c)), order.join(' → '));
-    await page.click('.menu-toggle');
-    await sleep(250);
-    check('mobile: menu opens with aria-expanded', await page.$eval('.menu-toggle', (b) => b.getAttribute('aria-expanded') === 'true' && getComputedStyle(document.querySelector('#menu')).visibility === 'visible'));
-    await page.keyboard.press('Escape');
-    await sleep(250);
-    check('mobile: Escape closes the menu and returns focus', await page.evaluate(() => document.querySelector('.menu-toggle').getAttribute('aria-expanded') === 'false' && document.activeElement.classList.contains('menu-toggle')));
-    await page.click('.menu-toggle');
-    await sleep(250);
-    await page.click('#menu a[href="#proceso"]');
-    await settle(page);
-    check('mobile: a menu link closes the menu and lands on its section', await page.evaluate(() => location.hash === '#proceso' && document.querySelector('.menu-toggle').getAttribute('aria-expanded') === 'false' && Math.abs(document.querySelector('#proceso').getBoundingClientRect().top - document.querySelector('.site-header').offsetHeight) <= 2));
-    await page.close();
-  }
-});
-
-// ------------------------------------------------------------------ keyboard focus
-await section('keyboard', async () => {
-  for (const size of [[1440, 900], [390, 844]]) {
-    const tag = size.join('×');
-    const { page } = await open(size);
-    const seen = [];
-    for (let i = 0; i < 40; i++) {
-      await page.keyboard.press('Tab');
-      await settle(page);
-      const f = await page.evaluate(() => {
-        const el = document.activeElement;
-        if (!el || el === document.body) return null;
-        const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-        const ring = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2) || cs.boxShadow !== 'none';
-        let o = 1;
-        for (let n = el; n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
-        const onScreen = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
-        return { name: (el.textContent || el.getAttribute('aria-label') || el.tagName).trim().slice(0, 28), ring, onScreen, o: Number(o.toFixed(2)) };
+// ------------------------------------------------------------------ the inspection player: forwards and backwards
+if (run('player')) {
+  for (const size of [DESKTOP, PHONE, [1024, 768]]) {
+    const { page, errors } = await open(BASE + 'inspeccion-eolica/', size);
+    const tag = `player ${size.join('×')}`;
+    check(`${tag}: active`, await page.evaluate(() => document.querySelector('[data-player]').classList.contains('is-player')));
+    // scroll so that each moment's middle reaches the reading line, then read which frame shows
+    // the frame on top that is fully shown, and really on screen: laid out, its picture decoded
+    const visibleFrame = () => page.evaluate(() => {
+      const frames = [...document.querySelectorAll('.player-stage__frame')];
+      let top = -1;
+      frames.forEach((f, i) => {
+        const r = f.getBoundingClientRect(), img = f.querySelector('img'), st = getComputedStyle(f);
+        const shown = st.display !== 'none' && st.visibility !== 'hidden' && +st.opacity > 0.98 && r.height > 120 && r.bottom > 0 && r.top < innerHeight && img.naturalWidth > 0;
+        if (shown) top = i;
       });
-      if (!f) break;
-      seen.push(f);
-    }
-    const bad = seen.filter((f) => !f.ring || !f.onScreen || f.o < 0.95);
-    check(`${tag}: each focused control shows a ring and is on screen`, bad.length === 0, bad.map((f) => `${f.name} ring:${f.ring} on:${f.onScreen} o:${f.o}`).join('; ') || `${seen.length} stops`);
-    await page.close();
-  }
-});
-
-// ------------------------------------------------------------------ the demo form never sends
-await section('form', async () => {
-  const { page } = await open([1440, 900]);
-  const before = page.url();
-  await page.click('.menu a[href="#contacto"]');
-  await settle(page);
-  const sent = [];
-  page.on('request', (r) => { if (r.method() !== 'GET' || !/\.(js|css|woff2?|webp|png|jpg|svg)(\?|$)/.test(r.url())) sent.push(`${r.method()} ${r.url()}`); });
-  await page.click('.form button[type="submit"]');
-  await sleep(200);
-  const empty = await page.evaluate(() => ({ valid: document.querySelector('.form').checkValidity(), status: document.querySelector('.form-status')?.textContent.trim() }));
-  check('empty form is not accepted', !empty.valid && !empty.status, JSON.stringify(empty));
-  await page.type('.form [name="nombre"]', 'Prueba');
-  await page.type('.form [name="correo"]', 'prueba@ejemplo.test');
-  await page.click('.form button[type="submit"]');
-  await sleep(400);
-  const after = await page.evaluate(() => ({ status: document.querySelector('.form-status')?.textContent.trim() ?? '', focus: document.activeElement?.classList.contains('form-status') }));
-  check('a filled form says plainly that nothing was sent', /no se ha enviado/i.test(after.status), after.status);
-  check('the notice takes focus so it is announced', after.focus === true);
-  check('no request leaves the page on submit', sent.length === 0, sent.join(' | '));
-  check('the page does not navigate on submit', page.url() === before || page.url().startsWith(before.split('#')[0]));
-  await page.close();
-});
-
-// ------------------------------------------------------------------ fallbacks: reduced motion, no WebGL, short window, lost context, failed chunk
-await section('fallbacks', async () => {
-  const staticOk = async (page, tag, reason) => {
-    const s = await page.evaluate(() => ({
-      static: !!document.querySelector('.xp-static'), canvas: !!document.querySelector('canvas'),
-      note: document.querySelector('.xp-static-note')?.textContent ?? '', h1: !!document.querySelector('#hero-title'),
-    }));
-    check(`${tag}: static version with the same content`, s.static && !s.canvas && s.h1 && reason.test(s.note), JSON.stringify(s));
-    const h = await page.evaluate(() => document.documentElement.scrollHeight);
-    for (let y = 0; y < h; y += 700) await jump(page, y);
-    await settle(page);
-    const imgs = await page.evaluate(() => [...document.querySelectorAll('.still-media img')].map((i) => i.complete && i.naturalWidth > 0));
-    check(`${tag}: the four stills load`, imgs.length === 4 && imgs.every(Boolean), JSON.stringify(imgs));
-    const { cut, overflowX } = await clipping(page);
-    check(`${tag}: no clipped text, no horizontal overflow`, cut.length === 0 && overflowX <= 0, `${cut.join(', ')} ${overflowX}px`);
-  };
-  for (const size of [[1440, 900], [390, 844]]) {
-    const { page, errors } = await open(size, { reduced: true });
-    await staticOk(page, `reduced motion ${size.join('×')}`, /movimiento reducido/i);
-    check(`reduced motion ${size.join('×')}: no WebGL drawing at all`, await page.evaluate(() => window.__draws === 0));
-    check(`reduced motion ${size.join('×')}: no console errors`, errors.length === 0, errors.join(' | '));
-    await page.close();
-  }
-  {
-    const { page, errors } = await open([1440, 900], { query: '?nowebgl' });
-    await staticOk(page, 'no WebGL', /no puede mostrar la escena 3D/i);
-    check('no WebGL: no console errors', errors.length === 0, errors.join(' | '));
-    await page.close();
-  }
-  for (const size of [[720, 450], [844, 390], [960, 480]]) {
-    const { page, errors } = await open(size);
-    await staticOk(page, `short window ${size.join('×')} (200 % zoom, phone sideways)`, /demasiado baja/i);
-    check(`short window ${size.join('×')}: no console errors`, errors.length === 0, errors.join(' | '));
-    await page.close();
-  }
-  {
-    const { page, errors } = await open([1440, 900]);
-    await page.evaluate(() => document.querySelector('.xp-canvas canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
-    await page.waitForSelector('.xp-static', { timeout: 5000 }).catch(() => null);
-    await staticOk(page, 'lost WebGL context', /no ha podido cargarse/i);
-    check('lost WebGL context: no uncaught errors', errors.filter((e) => !/context lost/i.test(e)).length === 0, errors.join(' | '));
-    await page.close();
-  }
-  {
-    const block = async (page) => {
-      await page.setRequestInterception(true);
-      page.on('request', (r) => (/Scene[-.]/.test(r.url()) ? r.abort() : r.continue()));
-    };
-    const { page } = await open([1440, 900], { before: block, wait: false });
-    await page.waitForSelector('.xp-static', { timeout: 30000 }).catch(() => null);
-    await staticOk(page, '3D code fails to load', /no ha podido cargarse/i);
-    await page.close();
-  }
-});
-
-// ------------------------------------------------------------------ the frame loop pauses
-await section('pause', async () => {
-  const draws = async (page, ms) => { await page.evaluate(() => { window.__draws = 0; }); await sleep(ms); return page.evaluate(() => window.__draws); };
-  {
-    const { page } = await open([1440, 900]);
-    check('ambient motion draws while the stage is on screen', (await draws(page, 600)) > 0);
-    await page.click('.menu a[href="#contacto"]');
-    await settle(page);
-    await sleep(300);
-    check('no drawing once the stage is off screen', (await draws(page, 1000)) === 0);
-    await jump(page, 0);
-    await sleep(300);
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
-      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
-      document.dispatchEvent(new Event('visibilitychange'));
+      return top;
     });
-    await sleep(300);
-    check('no drawing while the tab is hidden', (await draws(page, 1000)) === 0);
+    const at = async (i) => {
+      await page.evaluate((i) => {
+        const m = document.querySelectorAll('.moment')[i], s = document.querySelector('.player-stage').getBoundingClientRect();
+        const stacked = s.width > document.querySelector('.player-layout').getBoundingClientRect().width * 0.8;
+        const line = stacked ? (s.height + innerHeight + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 0)) / 2 : innerHeight / 2;
+        const r = m.getBoundingClientRect();
+        scrollTo(0, scrollY + r.top + r.height * 0.5 - line);
+      }, i);
+      await frames(page, 4);
+      return visibleFrame();
+    };
+    const fwd = [], back = [];
+    for (let i = 0; i < 4; i++) fwd.push(await at(i));
+    for (let i = 3; i >= 0; i--) back.push(await at(i));
+    check(`${tag}: frames follow the moments forwards`, fwd.join() === '0,1,2,3', fwd.join());
+    check(`${tag}: and backwards`, back.join() === '3,2,1,0', back.join());
+    // the texts never sit over the pictures
+    const overlaps = [];
+    for (let i = 0; i < 4; i++) {
+      await at(i);
+      const o = await page.evaluate((i) => {
+        const t = document.querySelectorAll('.moment__text')[i].getBoundingClientRect(), s = document.querySelector('.player-stage').getBoundingClientRect();
+        return Math.max(0, Math.min(t.right, s.right) - Math.max(t.left, s.left)) * Math.max(0, Math.min(t.bottom, s.bottom) - Math.max(t.top, s.top));
+      }, i);
+      if (o > 0) overlaps.push(`${i}: ${Math.round(o)}px²`);
+    }
+    check(`${tag}: the text being read is clear of the picture`, !overlaps.length, overlaps.join(' '));
+    // what a reader sees at each moment (the full-page capture cannot show a sticky stage)
+    if (SHOTS && (size === DESKTOP || size === PHONE)) {
+      await fs.mkdir(SHOTS, { recursive: true });
+      for (let i = 0; i < 4; i++) {
+        await at(i);
+        await sleep(400);
+        await page.screenshot({ path: path.join(SHOTS, `inspeccion-momento-${i + 1}-${size === DESKTOP ? 'escritorio' : 'movil'}.webp`), type: 'webp', quality: 82 });
+      }
+    }
+    check(`${tag}: no errors`, !errors.length, errors.join(' | '));
     await page.close();
   }
-  {
-    const { page } = await open([1440, 900], { query: '?still' });
-    await sleep(500);
-    check('without ambient motion, nothing is drawn while the scroll rests', (await draws(page, 1000)) === 0);
-    await page.mouse.move(720, 450);
-    await page.mouse.wheel({ deltaY: 300 });
-    await sleep(400);
-    check('…and it draws again when the scroll moves', (await page.evaluate(() => window.__draws)) > 0);
-    await page.close();
-  }
-});
+}
 
-// ------------------------------------------------------------------ resize keeps the scene right
-await section('resize', async () => {
-  const { page, errors } = await open([1440, 900], { query: '?still' });
-  await jump(page, await yFor(page, ACT_STILLS.inspeccion));
-  const a = await pose(page);
-  for (const [w, h] of [[390, 844], [1920, 1080], [1024, 768]]) {
-    await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
-    await sleep(400);
-    await jump(page, await yFor(page, ACT_STILLS.inspeccion));
-    const L = await actLayout(page);
-    const inside = L.blocks.every((b) => b.l >= -1 && b.r <= L.vw + 1 && b.t >= L.header - 1 && b.b <= L.vh + 1);
-    check(`resized to ${w}×${h}: act 3 framed, texts inside, drone clear`, L.i === 2 && inside && (!L.drone || L.blocks.every((b) => !overlaps(L.drone, b, 8))));
-  }
-  await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-  await sleep(400);
-  await jump(page, await yFor(page, ACT_STILLS.inspeccion));
-  const b = await pose(page);
-  check('back to 1440×900: the same frame as before resizing', poseDiff(a, b) < 0.5, `${poseDiff(a, b).toFixed(2)}px`);
-  check('resizing: no console errors', errors.length === 0, errors.join(' | '));
+// ------------------------------------------------------------------ reduced motion: a still page
+if (run('reduced')) {
+  const { page } = await open(BASE + 'inspeccion-eolica/', DESKTOP, { reduced: true });
+  const r = await page.evaluate(() => ({
+    player: document.querySelector('[data-player]').classList.contains('is-player'),
+    pictures: [...document.querySelectorAll('.moment__media img')].filter((i) => i.getBoundingClientRect().height > 100).length,
+  }));
+  check('reduced motion: no scroll player, every moment shows its picture', !r.player && r.pictures === 4, JSON.stringify(r));
+  await page.goto(BASE, { waitUntil: 'networkidle0' });
+  check('reduced motion: the cover does not drift', await page.evaluate(() => getComputedStyle(document.querySelector('.hero picture img')).animationName === 'none' || parseFloat(getComputedStyle(document.querySelector('.hero picture img')).animationDuration) < 0.1));
   await page.close();
-});
+}
+
+// ------------------------------------------------------------------ the cover: the words never sit on the drone
+if (run('layout')) {
+  const { drone } = JSON.parse(await fs.readFile('docs/rediseno-web/render/inicio-escritorio.json', 'utf8')).overlay;
+  const { drone: droneTall } = JSON.parse(await fs.readFile('docs/rediseno-web/render/inicio-movil.json', 'utf8')).overlay;
+  for (const size of SIZES) {
+    const { page } = await open(BASE, size);
+    const r = await page.evaluate((drone, droneTall) => {
+      const img = document.querySelector('.hero picture img'), box = img.getBoundingClientRect();
+      const tall = innerWidth <= 760, [u, v] = tall ? droneTall : drone;
+      // where object-fit: cover with the CSS object-position puts that point of the picture
+      const [px, py] = getComputedStyle(img).objectPosition.split(' ').map((s) => parseFloat(s) / 100);
+      const k = Math.max(box.width / img.naturalWidth, box.height / img.naturalHeight), w = img.naturalWidth * k, h = img.naturalHeight * k;
+      const x = box.left + (box.width - w) * px + u * w, y = box.top + (box.height - h) * py + v * h;
+      const c = document.querySelector('.hero-copy').getBoundingClientRect(), hd = document.querySelector('.site-header__inner').getBoundingClientRect();
+      const inside = (b, m) => x > b.left - m && x < b.right + m && y > b.top - m && y < b.bottom + m;
+      return { x: Math.round(x), y: Math.round(y), copy: inside(c, 40), header: inside(hd, 0), onScreen: x > 0 && x < innerWidth && y > 0 && y < innerHeight };
+    }, drone, droneTall);
+    check(`cover ${size.join('×')}: the drone is in view and clear of the words`, r.onScreen && !r.copy && !r.header, JSON.stringify(r));
+    await page.close();
+  }
+}
 
 await browser.close();
-console.log(`\n${failures ? `${failures} check(s) failed` : 'all checks passed'}`);
+server?.close();
+console.log(failures ? `\n${failures} check(s) failed` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

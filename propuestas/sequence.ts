@@ -11,7 +11,7 @@ import { aimAt } from './aim';
 import { skyFromQuery } from './environment';
 import { COVER, COVER_MOBILE, SUN, poseAt } from './motion';
 import { studioPoseAt } from './motion-studio';
-import { buildProposalScene } from './scene';
+import { buildProposalScene, traceNearOrigin } from './scene';
 import { spinProps } from './surfaces';
 
 declare global { interface Window { __frame?: (i: number, n: number) => Promise<{ ms: number; samples: number }>; __ready?: boolean } }
@@ -32,6 +32,7 @@ document.body.appendChild(renderer.domElement);
 
 const { scene, drone, poseDrone } = buildProposalScene({ sunDir: SUN.clone(), sky: await skyFromQuery(q), studio: q.get('studio') === '1' });
 const camera = new THREE.PerspectiveCamera(start.fov, W / H, 0.05, 20000);
+const nearOrigin = raster ? () => {} : traceNearOrigin(scene);
 // a new, unrelated propeller phase each frame, as a short shutter catches a spinning rotor;
 // derived from the frame number so a resumed run renders the same frames
 const seed = Number(q.get('seed') ?? 5);
@@ -48,6 +49,7 @@ function place(t: number, i = 0) {
   camera.fov = p.fov;
   camera.updateProjectionMatrix();
   aimAt(camera, p.drone, p.aim[0], p.aim[1], p.roll);
+  nearOrigin(camera);
 }
 
 const frame = () => new Promise((r) => requestAnimationFrame(r));
