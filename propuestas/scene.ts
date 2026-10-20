@@ -7,12 +7,13 @@ import { createMaterials } from '../src/experience/materials';
 import { noise2 } from '../src/experience/math';
 import { buildDrone, type DroneRig } from '../src/experience/models/drone';
 import {
-  BLADES, DEFECT, OBSTRUCTION_LIGHTS, TURBINE, bladeMatrix, buildBladeGeometry, buildBladePatch, buildNacelleDetails, buildNacelleGeometry,
+  BLADES, DEFECT, bladeSurfaceWorld, OBSTRUCTION_LIGHTS, TURBINE, bladeMatrix, buildBladeGeometry, buildBladePatch, buildNacelleDetails, buildNacelleGeometry,
   buildNacelleSeams, buildReceptors, buildSpinnerGeometry, buildTowerGeometry, rotorMatrix,
 } from '../src/experience/models/turbine';
 import { droneState, gimbalAngles, gimbalTarget } from '../src/experience/trajectory';
 import { skyTexture } from './sky';
-import { bladeSkin, erosionMaps, skinTransform, smearProps } from './surfaces';
+import { studioLighting } from './studio';
+import { applySkinUvs, bladeSkin, erosionMaps, smearProps } from './surfaces';
 
 /** Towards the sun: low (≈13°), in front of the rotor and a little to the side of blade B. */
 export const SUN_DIR = new THREE.Vector3(-0.35, 0.22, 0.91).normalize();
@@ -41,14 +42,36 @@ function gelcoatNormal() {
 }
 
 export type PropLook = 'still' | 'smear';
+
+/**
+ * The path tracer lifts every ray off the surface it leaves by a fixed number of float steps:
+ * about 2 mm at 100 m from the origin, more than the erosion decal's lift over the paint, so
+ * rays passing through the decal would start inside the blade. The path-traced renders move
+ * the scene and the camera together so that the inspected point sits at the origin (the studio
+ * and the skies are at infinity: nothing else changes).
+ */
+export function traceNearOrigin(scene: THREE.Scene) {
+  const shift = bladeSurfaceWorld(DEFECT.blade, DEFECT.r, DEFECT.q);
+  scene.position.copy(shift).negate();
+  scene.updateMatrixWorld(true);
+  return (camera: THREE.Camera) => { camera.position.sub(shift); camera.updateMatrixWorld(); };
+}
 /** A photographed sky (environment.ts) turned about +y; it carries its own sun. */
 export interface RealSky { texture: THREE.Texture; rotation: number; intensity?: number }
 
-export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky }: { sunDir?: THREE.Vector3; props?: PropLook; sky?: RealSky } = {}) {
+/**
+ * `studio`: the multi-page redesign's look — only the inspected blade (B) and the drone, lit
+ * by studio softboxes in front of a deep navy backdrop (studio.ts); no tower, nacelle or sky.
+ */
+export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky, studio = false, lite = false }: { sunDir?: THREE.Vector3; props?: PropLook; sky?: RealSky; studio?: boolean; lite?: boolean } = {}) {
   const mats = createMaterials();
   const scene = new THREE.Scene();
   let sun: THREE.DirectionalLight | null = null;
-  if (sky) {
+  if (studio) {
+    const light = studioLighting();
+    scene.background = light.backdrop;
+    scene.environment = light.environment;
+  } else if (sky) {
     scene.background = sky.texture;
     scene.environment = sky.texture;
     scene.backgroundRotation.set(0, sky.rotation, 0);
@@ -68,39 +91,45 @@ export function buildProposalScene({ sunDir = SUN_DIR, props = 'smear', sky }: {
   // orange peel in the top coat
   const peel = gelcoatNormal();
   peel.repeat.set(60, 3);
-  const skin = bladeSkin();
+  // `lite`: coarser paint maps for quick raster previews
+  const skin = bladeSkin(lite ? { w: 1024, h: 256 } : {});
   const blade = new THREE.MeshPhysicalMaterial({
-    color: '#ffffff', map: skinTransform(skin.map), roughness: 1, roughnessMap: skinTransform(skin.roughnessMap), metalness: 0,
-    normalMap: skinTransform(skin.normalMap), normalScale: new THREE.Vector2(1, 1),
+    color: '#ffffff', map: skin.map, roughness: 1, roughnessMap: skin.roughnessMap, metalness: 0,
+    normalMap: skin.normalMap, normalScale: new THREE.Vector2(1, 1),
     clearcoat: 0.25, clearcoatRoughness: 0.22, clearcoatNormalMap: peel, clearcoatNormalScale: new THREE.Vector2(0.08, 0.08),
   });
-  const wear = erosionMaps(39.2, 41.0, DEFECT.chord[0], DEFECT.chord[1]);
-  const erosion = new THREE.MeshPhysicalMaterial({
+  // the example erosion as a fine decal over the paint: on blade B where the inspection looks,
+  // and (outside the studio) the same kind of wear on blade A
+  const wearMaterial = (wear: ReturnType<typeof erosionMaps>) => new THREE.MeshPhysicalMaterial({
     color: '#ffffff', map: wear.map, transparent: true, depthWrite: false, roughness: 1, roughnessMap: wear.roughnessMap, metalness: 0,
     normalMap: wear.normalMap, normalScale: new THREE.Vector2(1, 1), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   });
+  const erosionB = wearMaterial(erosionMaps(DEFECT.span[0], DEFECT.span[1], DEFECT.chord[0], DEFECT.chord[1], lite ? { w: 2048 } : {}));
+  const erosionA = studio ? null : wearMaterial(erosionMaps(39.2, 41.0, DEFECT.chord[0], DEFECT.chord[1], { w: 2048 }));
   const m = mats.turbine;
   const g = new THREE.Group();
   const add = (parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material) => { const x = new THREE.Mesh(geo, mat); parent.add(x); return x; };
-  add(g, buildTowerGeometry(96), m.tower);
-  const top = new THREE.Group();
-  top.position.y = TURBINE.towerTop;
-  add(top, buildNacelleGeometry(96), m.nacelle);
-  add(top, buildNacelleDetails(), m.steel);
-  add(top, buildNacelleSeams(), m.seam);
-  for (const [x, y, z] of OBSTRUCTION_LIGHTS) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 12), m.lamp); l.position.set(x, y, z); top.add(l); }
-  g.add(top);
+  if (!studio) {
+    add(g, buildTowerGeometry(96), m.tower);
+    const top = new THREE.Group();
+    top.position.y = TURBINE.towerTop;
+    add(top, buildNacelleGeometry(96), m.nacelle);
+    add(top, buildNacelleDetails(), m.steel);
+    add(top, buildNacelleSeams(), m.seam);
+    for (const [x, y, z] of OBSTRUCTION_LIGHTS) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 12), m.lamp); l.position.set(x, y, z); top.add(l); }
+    g.add(top);
+  }
   const rotor = decompose(new THREE.Group(), rotorMatrix());
-  add(rotor, buildSpinnerGeometry(96), m.nacelle);
+  if (!studio) add(rotor, buildSpinnerGeometry(96), m.nacelle);
   const geo = buildBladeGeometry({ ring: 144, spanScale: 2.5 });
-  geo.surface.computeTangents();
+  applySkinUvs(geo.surface).computeTangents();
   const receptors = buildReceptors();
-  for (const id of BLADES) {
+  for (const id of studio ? (['B'] as const) : BLADES) {
     const b = decompose(new THREE.Group(), bladeMatrix(id));
     add(b, geo.surface, blade); add(b, geo.te, m.bladeEdge); add(b, receptors, m.receptor);
-    if (id === DEFECT.blade) add(b, buildBladePatch(DEFECT.span[0], DEFECT.span[1], DEFECT.chord[0], DEFECT.chord[1], { nr: 48, nq: 96, offset: 0.002 }), erosion);
+    if (id === DEFECT.blade) add(b, buildBladePatch(DEFECT.span[0], DEFECT.span[1], DEFECT.chord[0], DEFECT.chord[1], { nr: 96, nq: 192, offset: 0.0008 }), erosionB);
     // the same kind of wear on the upper blade, which the cover A inspects
-    if (id === 'A') add(b, buildBladePatch(39.2, 41.0, DEFECT.chord[0], DEFECT.chord[1], { nr: 48, nq: 96, offset: 0.002 }), erosion);
+    if (id === 'A' && erosionA) add(b, buildBladePatch(39.2, 41.0, DEFECT.chord[0], DEFECT.chord[1], { nr: 48, nq: 96, offset: 0.002 }), erosionA);
     rotor.add(b);
   }
   g.add(rotor);

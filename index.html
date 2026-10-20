@@ -1,29 +1,110 @@
 <!doctype html>
 <html lang="es">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>AEROVIA INSPECTOR · Inspección aérea con criterio de ingeniería</title>
-    <meta name="description" content="Demo de AEROVIA INSPECTOR: inspección técnica con drones de aerogeneradores, torres e infraestructuras. Recorrido 3D de la inspección de una pala, proceso de trabajo y ejemplo de informe simulado." />
-    <meta name="theme-color" content="#071321" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content="es_ES" />
-    <meta property="og:site_name" content="AEROVIA INSPECTOR" />
-    <meta property="og:title" content="AEROVIA INSPECTOR · Inspección aérea. Criterio de ingeniería." />
-    <meta property="og:description" content="Inspección visual con drones de aerogeneradores, torres e infraestructuras, explicada en un recorrido 3D. Demo con datos de ejemplo." />
-    <meta name="twitter:card" content="summary_large_image" />
-    <!--share-meta-->
+    <meta charset="utf-8" />
+    <title>AEROVIA INSPECTOR · Inspección aérea. Criterio de ingeniería.</title>
+    <meta name="description" content="Inspección visual con drones de aerogeneradores, torres e infraestructuras, con un informe de fotografías localizadas para su equipo de ingeniería." />
+    <!--site:head-->
   </head>
-  <body>
-    <div id="root"></div>
-    <noscript>
-      <div class="noscript">
-        <p>AEROVIA INSPECTOR · Inspección aérea. Criterio de ingeniería.</p>
-        <p>Esta demo necesita JavaScript para mostrar su recorrido 3D, los servicios y el formulario.</p>
-      </div>
-    </noscript>
-    <script type="module" src="/src/main.tsx"></script>
+  <body data-page="inicio">
+    <!--site:header-->
+    <main id="contenido" tabindex="-1">
+      <section class="hero" aria-labelledby="titulo">
+        <picture>
+          <source media="(max-width: 760px)" srcset="/src/assets/site/inicio-movil.webp" width="1170" height="2340" />
+          <img src="/src/assets/site/inicio-escritorio-1280.webp" srcset="/src/assets/site/inicio-escritorio-1280.webp 1280w, /src/assets/site/inicio-escritorio.webp 2560w" sizes="100vw" width="2560" height="1600" fetchpriority="high" alt="Dron de inspección suspendido junto al borde de ataque de una pala de aerogenerador, con la cámara orientada a la superficie, sobre fondo azul marino" />
+        </picture>
+        <div class="hero-copy">
+          <p class="label">Inspección técnica con drones</p>
+          <h1 class="h1" id="titulo">Inspección aérea. Criterio de ingeniería.</h1>
+          <p class="lead">Inspección visual con drones de aerogeneradores, torres e infraestructuras, con un informe de fotografías localizadas para la revisión de su equipo de ingeniería.</p>
+          <div class="actions">
+            <a class="btn btn-solid" href="<!--site:base-->contacto/">Solicitar presupuesto</a>
+            <a class="btn btn-line" href="<!--site:base-->inspeccion-eolica/">Ver la inspección eólica <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+        <span class="credit">Recreación 3D</span>
+      </section>
+
+      <section class="intro" aria-labelledby="t-intro">
+        <div class="wrap">
+          <div>
+            <p class="label">AEROVIA INSPECTOR</p>
+            <h2 class="h2" id="t-intro">Ver de cerca lo que desde el suelo no se ve.</h2>
+          </div>
+          <div class="prose">
+            <p>Planificamos el vuelo con su equipo, capturamos cada superficie del activo de forma sistemática y ordenamos las imágenes por componente y posición.</p>
+            <p>El resultado es un informe técnico con fotografías localizadas y observaciones, como base para las decisiones de mantenimiento de su equipo.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section go" aria-labelledby="t-go">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="label">Conozca el servicio</p>
+            <h2 class="h2" id="t-go">Qué hacemos, cómo lo hacemos y qué recibe</h2>
+          </div>
+          <a class="go-feature" href="<!--site:base-->inspeccion-eolica/">
+            <figure>
+              <img src="/src/assets/site/momento-2-1200.webp" srcset="/src/assets/site/momento-2-1200.webp 1200w, /src/assets/site/momento-2.webp 2400w" sizes="(max-width: 1100px) 100vw, 60vw" width="2400" height="1500" loading="lazy" alt="Recreación 3D: el dron avanza a lo largo de la pala con la cámara orientada a su superficie" />
+            </figure>
+            <div class="go-feature__text">
+              <p class="label">Recorrido 3D</p>
+              <h3 class="h2">Inspección eólica</h3>
+              <p>Siga al dron junto a la pala: la llegada, el recorrido a lo largo de la superficie y el acercamiento a la zona que se documenta.</p>
+              <span class="go-link">Ver el recorrido <i aria-hidden="true">→</i></span>
+            </div>
+          </a>
+          <ul class="go-grid">
+            <li>
+              <a class="go-card" href="<!--site:base-->servicios/">
+                <figure><img src="/src/assets/site/dron-1200.webp" width="1200" height="750" loading="lazy" alt="Recreación 3D: dron industrial de inspección suspendido sobre la pala de un aerogenerador" /></figure>
+                <div class="go-card__text">
+                  <h3 class="h3">Servicios</h3>
+                  <p>Aerogeneradores, torres e infraestructuras, y el informe técnico que recibe su equipo.</p>
+                  <span class="go-link">Ver servicios <i aria-hidden="true">→</i></span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a class="go-card" href="<!--site:base-->como-trabajamos/">
+                <div class="go-steps" aria-hidden="true">
+                  <span><b>01</b>Planificación</span><span><b>02</b>Captura</span><span><b>03</b>Revisión</span><span><b>04</b>Entrega</span>
+                </div>
+                <div class="go-card__text">
+                  <h3 class="h3">Cómo trabajamos</h3>
+                  <p>Qué ocurre en cada fase, del primer contacto a la entrega del informe.</p>
+                  <span class="go-link">Ver el proceso <i aria-hidden="true">→</i></span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a class="go-card" href="<!--site:base-->informes/">
+                <figure><img src="/src/assets/site/captura-1200.webp" width="1200" height="750" loading="lazy" alt="Captura de ejemplo: el borde de ataque de la pala con una zona de erosión" /></figure>
+                <div class="go-card__text">
+                  <h3 class="h3">Informes</h3>
+                  <p>Un ejemplo de entregable con fotografías localizadas, identificado como demostración.</p>
+                  <span class="go-link">Ver el informe de ejemplo <i aria-hidden="true">→</i></span>
+                </div>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="cta-band" aria-labelledby="t-cta">
+        <div class="wrap">
+          <div>
+            <h2 class="h2" id="t-cta">¿Tiene un activo que revisar?</h2>
+            <p>Cuéntenos qué necesita inspeccionar y dónde está. Preparamos la inspección con su equipo.</p>
+          </div>
+          <div class="actions">
+            <a class="btn btn-solid" href="<!--site:base-->contacto/">Solicitar presupuesto</a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <!--site:footer-->
   </body>
 </html>

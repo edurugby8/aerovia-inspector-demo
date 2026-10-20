@@ -73,6 +73,17 @@ export function buildPropBlades(dir: 1 | -1, { stations = 26, ring = 18 } = {}) 
   return merge([blade(1), blade(-1), hub]);
 }
 
+/** A box w × h × d centred on the origin with rounded edges and chamfered ends (depth along z). */
+function roundBox(w: number, h: number, d: number) {
+  const c = Math.min(w, h, d) * 0.16;
+  return loftSquircle([
+    { z: d / 2, w: w - 2 * c, h: h - 2 * c, n: 4 },
+    { z: d / 2 - c, w, h, n: 5 },
+    { z: -d / 2 + c, w, h, n: 5 },
+    { z: -d / 2, w: w - 2 * c, h: h - 2 * c, n: 4 },
+  ], 24);
+}
+
 // ------------------------------------------------------------------ assembly
 export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
   const root = new THREE.Group();
@@ -81,6 +92,10 @@ export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
   const add = (mat: DroneMaterialName, g: THREE.BufferGeometry) => { if (!parts.has(mat)) parts.set(mat, []); parts.get(mat)!.push(g); };
   const box = (mat: DroneMaterialName, w: number, h: number, d: number, x: number, y: number, z: number, ry = 0) => {
     const g = new THREE.BoxGeometry(w, h, d); if (ry) g.rotateY(ry); g.translate(x, y, z); add(mat, g);
+  };
+  /** Like `box`, with the edges rounded and the ends chamfered, as a machined or moulded part. */
+  const rbox = (mat: DroneMaterialName, w: number, h: number, d: number, x: number, y: number, z: number, ry = 0) => {
+    const g = roundBox(w, h, d); if (ry) g.rotateY(ry); g.translate(x, y, z); add(mat, g);
   };
 
   // fuselage, cover shell and a fine accent line between them
@@ -101,6 +116,17 @@ export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
     { z: -0.185, w: 0.17, h: 0.034, y: 0.05, n: 3 },
   ], ring));
   for (const x of [0.1375, -0.1375]) box('accent', 0.003, 0.005, 0.22, x, 0.044, -0.005);
+  // the parting line between cover and fuselage: a dark gap all round
+  add('rubber', loftSquircle([
+    { z: 0.18, w: 0.176, h: 0.006, y: 0.035, n: 3 },
+    { z: 0.14, w: 0.262, h: 0.006, y: 0.031, n: 4 },
+    { z: 0.0, w: 0.279, h: 0.006, y: 0.029, n: 4.5 },
+    { z: -0.13, w: 0.265, h: 0.006, y: 0.03, n: 4.5 },
+    { z: -0.18, w: 0.176, h: 0.006, y: 0.035, n: 3 },
+  ], ring));
+  // cover screws and the front status light
+  for (const [x, z] of [[0.1, 0.13], [-0.1, 0.13], [0.1, -0.115], [-0.1, -0.115]]) add('alu', cylinderY(0.0042, 0.003, 0.083, 16).translate(x, 0, z));
+  box('ledWhite', 0.09, 0.0035, 0.003, 0, -0.031, 0.2135);
 
   // front sensor face and stereo vision pairs (front, rear, sides, below)
   add('glass', loftSquircle([{ z: 0.2165, w: 0.16, h: 0.046, y: -0.003, n: 4 }, { z: 0.21, w: 0.17, h: 0.05, y: -0.003, n: 4 }], 32));
@@ -123,21 +149,34 @@ export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
   // side cooling vents
   for (const x of [0.156, -0.156]) for (let i = 0; i < 7; i++) box('rubber', 0.004, 0.03, 0.006, x, 0.0, -0.11 + i * 0.012);
 
-  // twin batteries with latch strips and charge indicators, RTK antennas
-  for (const x of [0.042, -0.042]) {
+  // battery bay: a raised housing on the cover, two smart batteries slotted in from above, each
+  // with a rubber grip, a blue release latch and a four-step charge gauge on its rear face
+  add('body', loftSquircle([
+    { z: 0.002, w: 0.15, h: 0.026, y: 0.086, n: 4 },
+    { z: -0.012, w: 0.19, h: 0.046, y: 0.096, n: 5 },
+    { z: -0.152, w: 0.19, h: 0.046, y: 0.096, n: 5 },
+    { z: -0.166, w: 0.15, h: 0.026, y: 0.09, n: 4 },
+  ], ring));
+  for (const x of [0.046, -0.046]) {
     add('light', loftSquircle([
-      { z: -0.02, w: 0.072, h: 0.058, x, y: 0.112, n: 6 },
-      { z: -0.03, w: 0.076, h: 0.062, x, y: 0.112, n: 7 },
-      { z: -0.16, w: 0.076, h: 0.062, x, y: 0.112, n: 7 },
-      { z: -0.17, w: 0.072, h: 0.058, x, y: 0.112, n: 6 },
-    ], 28));
-    box('body', 0.05, 0.006, 0.11, x, 0.144, -0.095);
-    for (let i = 0; i < 4; i++) box('ledWhite', 0.004, 0.004, 0.002, x - 0.012 + i * 0.008, 0.124, -0.1715);
+      { z: -0.014, w: 0.066, h: 0.026, x, y: 0.122, n: 3 },
+      { z: -0.02, w: 0.076, h: 0.034, x, y: 0.121, n: 4 },
+      { z: -0.03, w: 0.08, h: 0.037, x, y: 0.12, n: 5 },
+      { z: -0.135, w: 0.08, h: 0.037, x, y: 0.12, n: 5 },
+      { z: -0.145, w: 0.076, h: 0.034, x, y: 0.121, n: 4 },
+      { z: -0.151, w: 0.066, h: 0.026, x, y: 0.122, n: 3 },
+    ], 32));
+    add('rubber', loftSquircle([{ z: -0.048, w: 0.034, h: 0.006, x, y: 0.1375, n: 4 }, { z: -0.117, w: 0.034, h: 0.006, x, y: 0.1375, n: 4 }], 20));
+    rbox('accent', 0.026, 0.007, 0.006, x, 0.1325, -0.1515);
+    for (let i = 0; i < 4; i++) box('ledWhite', 0.0045, 0.0026, 0.002, x - 0.012 + i * 0.008, 0.1245, -0.1515);
   }
-  for (const x of [0.105, -0.105]) {
-    add('aluDark', tube(v3(x, 0.07, -0.165), v3(x, 0.14, -0.175), 0.0055, 10));
-    add('light', cylinderY(0.033, 0.012, 0.14, 28).translate(x, 0, -0.175));
-    add('body', cylinderY(0.026, 0.004, 0.152, 28).translate(x, 0, -0.175));
+  // RTK antennas: domes on folding masts at the rear corners
+  for (const x of [0.112, -0.112]) {
+    const head = v3(x * 1.02, 0.158, -0.178);
+    add('aluDark', tube(v3(x - 0.012, 0.075, -0.168), v3(x + 0.012, 0.075, -0.168), 0.0085, 18));
+    add('body', tube(v3(x, 0.072, -0.168), head, 0.0062, 16));
+    add('body', cylinderY(0.03, 0.006, head.y - 0.004, 36).translate(head.x, 0, head.z));
+    add('light', lathe([[0.001, 0], [0.036, 0], [0.037, 0.004], [0.034, 0.011], [0.026, 0.0175], [0.014, 0.0215], [0.001, 0.0225]], 40).translate(head.x, head.y, head.z));
   }
 
   // arms, folding hinges, motors, LEDs and propellers
@@ -153,11 +192,19 @@ export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
     const at = (r: number, y: number) => d.clone().multiplyScalar(r).setY(y);
     const yaw = Math.atan2(d.x, d.z);
     add('carbon', tube(at(0.16, 0.012), at(0.43, 0.034), 0.017, 20));
+    // root fairing: the arm grows out of the fuselage instead of plugging into it
+    add('body', tube(at(0.118, 0.006), at(0.205, 0.0145), 0.033, 28, 0.0215));
+    // clamp screws
+    for (const s of [-1, 1]) {
+      const side = v3(d.z, 0, -d.x).multiplyScalar(0.016 * s);
+      add('alu', tube(at(0.425, 0.049).add(side), at(0.425, 0.0515).add(side), 0.0038, 12));
+    }
     // hinge block, locking sleeve with a thin accent ring, motor clamp
-    const hinge = new THREE.BoxGeometry(0.044, 0.04, 0.056); hinge.rotateY(yaw); hinge.translate(...at(0.19, 0.016).toArray()); add('alu', hinge);
+    rbox('aluDark', 0.044, 0.038, 0.054, ...at(0.19, 0.016).toArray() as [number, number, number], yaw);
+    add('alu', tube(at(0.19, -0.007), at(0.19, 0.039), 0.0072, 16)); // the hinge pin
     add('aluDark', tube(at(0.214, 0.0175), at(0.258, 0.0215), 0.0206, 20));
     add('accent', tube(at(0.259, 0.0216), at(0.263, 0.022), 0.0208, 20));
-    const clamp = new THREE.BoxGeometry(0.046, 0.03, 0.05); clamp.rotateY(yaw); clamp.translate(...at(0.425, 0.034).toArray()); add('aluDark', clamp);
+    rbox('aluDark', 0.046, 0.03, 0.05, ...at(0.425, 0.034).toArray() as [number, number, number], yaw);
     // motor: stator base, bell with cooling slots, top cap
     const m = at(DRONE.armRadius, 0);
     add('aluDark', cylinderY(0.041, 0.018, 0.028, 36).translate(m.x, 0, m.z));
@@ -188,7 +235,9 @@ export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
   for (const s of [1, -1]) {
     for (const z of [0.105, -0.105]) {
       add('carbon', tube(v3(s * 0.085, -0.045, z), v3(s * 0.175, -0.305, z * 1.25), 0.011, 14));
-      box('alu', 0.03, 0.022, 0.03, s * 0.085, -0.048, z);
+      rbox('aluDark', 0.03, 0.022, 0.03, s * 0.085, -0.048, z);
+      // the strut's socket on the skid
+      add('aluDark', tube(v3(s * 0.178, -0.318, z * 1.25 - 0.018), v3(s * 0.178, -0.318, z * 1.25 + 0.018), 0.0158, 18));
     }
     add('carbon', tube(v3(s * 0.178, -0.318, -0.205), v3(s * 0.178, -0.318, 0.205), 0.012, 16));
     for (const z of [-0.205, 0.205]) add('rubber', new THREE.SphereGeometry(0.0135, 14, 10).translate(s * 0.178, -0.318, z));
@@ -206,11 +255,11 @@ export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
   const gAdd = (mat: DroneMaterialName, g: THREE.BufferGeometry) => { if (!gParts.has(mat)) gParts.set(mat, []); gParts.get(mat)!.push(g); };
   // the arm runs behind the camera, far enough for the camera body to tilt freely
   gAdd('aluDark', cylinderY(0.026, 0.03, -0.03, 32));
-  gAdd('body', new THREE.BoxGeometry(0.02, 0.016, 0.1).translate(0, -0.036, -0.048));
-  gAdd('body', new THREE.BoxGeometry(0.02, 0.05, 0.02).translate(0, -0.062, -0.095));
+  gAdd('body', roundBox(0.02, 0.016, 0.1).translate(0, -0.036, -0.048));
+  gAdd('body', roundBox(0.02, 0.05, 0.02).translate(0, -0.062, -0.095));
   const roll = new THREE.CylinderGeometry(0.022, 0.022, 0.026, 28); roll.rotateX(Math.PI / 2); roll.translate(0, -0.09, -0.095); gAdd('aluDark', roll);
-  gAdd('body', new THREE.BoxGeometry(0.156, 0.014, 0.016).translate(0, -0.09, -0.077));
-  for (const x of [0.072, -0.072]) gAdd('body', new THREE.BoxGeometry(0.012, 0.03, 0.084).translate(x, -0.098, -0.042));
+  gAdd('body', roundBox(0.156, 0.014, 0.016).translate(0, -0.09, -0.077));
+  for (const x of [0.072, -0.072]) gAdd('body', roundBox(0.012, 0.03, 0.084).translate(x, -0.098, -0.042));
   const pitchMotor = new THREE.CylinderGeometry(0.021, 0.021, 0.022, 28); pitchMotor.rotateZ(Math.PI / 2); pitchMotor.translate(0.072, -0.105, 0); gAdd('aluDark', pitchMotor);
   const gimbalPitch = new THREE.Group();
   gimbalPitch.position.set(0, -0.105, 0);
@@ -226,6 +275,17 @@ export function buildDrone(mats: DroneMaterials, { ring = 40 } = {}): DroneRig {
   const barrel = lathe([[0.031, 0], [0.032, 0.006], [0.031, 0.026], [0.029, 0.034]], 40); barrel.rotateX(Math.PI / 2); barrel.translate(-0.016, 0.004, 0.04); cAdd('aluDark', barrel);
   const front = new THREE.CylinderGeometry(0.0265, 0.0265, 0.004, 40); front.rotateX(Math.PI / 2); front.translate(-0.016, 0.004, 0.0735); cAdd('glass', front);
   const iris = new THREE.RingGeometry(0.012, 0.025, 40); iris.translate(-0.016, 0.004, 0.0738); cAdd('iris', iris);
+  // the zoom lens: a blue index ring, a knurled focus ring and a short hood around the front glass
+  const ringAt = (z0: number, z1: number, r: number) => { const g = new THREE.CylinderGeometry(r, r, z1 - z0, 40, 1, true); g.rotateX(Math.PI / 2); g.translate(-0.016, 0.004, (z0 + z1) / 2); return g; };
+  cAdd('accent', ringAt(0.043, 0.0465, 0.0322));
+  for (let k = 0; k < 28; k++) {
+    const t = (k / 28) * Math.PI * 2, knurl = new THREE.BoxGeometry(0.0032, 0.0036, 0.011);
+    knurl.translate(0, 0.0315, 0); knurl.rotateZ(t); knurl.translate(-0.016, 0.004, 0.056);
+    cAdd('rubber', knurl);
+  }
+  const hood = lathe([[0.0272, 0], [0.0292, 0], [0.0318, 0.011], [0.0298, 0.011]], 40); hood.rotateX(Math.PI / 2); hood.translate(-0.016, 0.004, 0.0735); cAdd('body', hood);
+  // cooling grille on the back of the camera
+  for (let k = 0; k < 6; k++) cAdd('rubber', new THREE.BoxGeometry(0.07, 0.0028, 0.0025).translate(-0.006, -0.022 + k * 0.009, -0.0432));
   const wide = new THREE.CylinderGeometry(0.0115, 0.0125, 0.012, 28); wide.rotateX(Math.PI / 2); wide.translate(0.03, -0.018, 0.047); cAdd('aluDark', wide);
   const wideGlass = new THREE.CylinderGeometry(0.009, 0.009, 0.003, 28); wideGlass.rotateX(Math.PI / 2); wideGlass.translate(0.03, -0.018, 0.0535); cAdd('glass', wideGlass);
   const lens = new THREE.Object3D();
