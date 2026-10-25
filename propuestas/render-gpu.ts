@@ -2,13 +2,14 @@
 // Same query parameters and the same window.__done / __overlay / __progress outputs.
 import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
+import { PhysicalCamera } from 'three-gpu-pathtracer';
 import { WebGPUPathTracer } from 'three-gpu-pathtracer/webgpu';
 import { DEFECT, bladeSurfaceWorld } from '../src/experience/models/turbine';
 import { HUB } from '../src/experience/trajectory';
 import { aimAt } from './aim';
 import { parseHover } from './hover';
 import { skyFromQuery } from './environment';
-import { buildProposalScene, type PropLook } from './scene';
+import { buildProposalScene, traceNearOrigin, type PropLook } from './scene';
 import { SHOTS, type Format, type ShotName } from './shots';
 
 declare global { interface Window { __done?: { ms: number; samples: number }; __overlay?: unknown; __anchors?: unknown; __progress?: unknown } }
@@ -28,17 +29,29 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 const sunQ = q.get('sun')?.split(',').map(Number);
-const { scene, poseDrone } = buildProposalScene({ ...(sunQ ? { sunDir: new THREE.Vector3(sunQ[0], sunQ[1], sunQ[2]) } : {}), props: (q.get('props') ?? 'smear') as PropLook, sky: await skyFromQuery(q) });
+const { scene, poseDrone } = buildProposalScene({ ...(sunQ ? { sunDir: new THREE.Vector3(sunQ[0], sunQ[1], sunQ[2]) } : {}), props: (q.get('props') ?? 'smear') as PropLook, sky: await skyFromQuery(q), studio: q.get('studio') === '1' });
 const shot = SHOTS[name][fmt];
 renderer.toneMappingExposure = Number(q.get('exp') ?? shot.exposure);
 const pose = poseDrone(shot.p, parseHover(q.get('hover')));
-const camera = new THREE.PerspectiveCamera(Number(q.get('fov') ?? shot.fov), W / H, 0.05, 20000);
+// fstop=f: a lens with depth of field (35 mm film gauge), focused on the aimed point or at focus=m
+const fstop = Number(q.get('fstop') ?? 0);
+const camera = fstop ? new PhysicalCamera(Number(q.get('fov') ?? shot.fov), W / H, 0.05, 20000) : new THREE.PerspectiveCamera(Number(q.get('fov') ?? shot.fov), W / H, 0.05, 20000);
 const placed = shot.camera(pose);
 // camOn=r,q,dx,dy,dz: a camera placed relative to a point on blade B's surface
 const camOn = q.get('camOn')?.split(',').map(Number);
 camera.position.copy(camOn ? bladeSurfaceWorld('B', camOn[0], camOn[1]).add(new THREE.Vector3(camOn[2], camOn[3], camOn[4])) : vec(q.get('cam')) ?? placed.position);
+// camAround=az,el,dist: the camera around the drone (degrees; azimuth from +z towards +x)
+const around = q.get('camAround')?.split(',').map(Number);
+if (around) { const [az, el] = around.slice(0, 2).map(THREE.MathUtils.degToRad); camera.position.copy(pose.position).add(new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(around[2])); }
 const aim = q.get('aim')?.split(',').map(Number);
-if (aim) aimAt(camera, pose.position, aim[0], aim[1], THREE.MathUtils.degToRad(Number(q.get('roll') ?? 0))); else camera.lookAt(vec(q.get('look')) ?? placed.look);
+// target=r,q: put that point of blade B at `aim` instead of the drone
+const target = q.get('target')?.split(',').map(Number);
+const aimed = target ? bladeSurfaceWorld('B', target[0], target[1]) : pose.position;
+if (aim) aimAt(camera, aimed, aim[0], aim[1], THREE.MathUtils.degToRad(Number(q.get('roll') ?? 0))); else camera.lookAt(vec(q.get('look')) ?? placed.look);
+if (camera instanceof PhysicalCamera) {
+  camera.fStop = fstop;
+  camera.focusDistance = Number(q.get('focus') ?? aimed.clone().sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3())));
+}
 camera.updateProjectionMatrix();
 camera.updateMatrixWorld();
 
@@ -50,6 +63,7 @@ window.__overlay = {
   capture: [[DEFECT.span[0], 0.42], [DEFECT.span[1], 0.42], [DEFECT.span[1], 0.54], [DEFECT.span[0], 0.54]].map(([r, qq]) => screen(bladeSurfaceWorld('B', r, qq))),
   hub: screen(HUB),
 };
+traceNearOrigin(scene)(camera);
 
 const tScene = performance.now();
 const pt = new WebGPUPathTracer(renderer);

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inicio · AEROVIA INSPECTOR (propuesta)</title>
+    <link rel="icon" href="data:," />
+    <script type="module">
+      import '@fontsource/ibm-plex-sans/400.css';
+      import '@fontsource/ibm-plex-sans/500.css';
+      import '@fontsource/ibm-plex-sans/600.css';
+      import '@fontsource/ibm-plex-mono/500.css';
+    </script>
+    <style>
+      /* Propuesta de Inicio para la web multipágina: portada a sangre sobre el azul marino del
+         estudio, presentación breve y accesos a cada página. Cabecera y pie comunes a todo el sitio. */
+      :root {
+        --navy: #071321; --surface: #0d2034; --line: rgba(243, 246, 250, 0.14);
+        --blue: #0c4a80; --blue-text: #8fc0ec;
+        --ink: #f3f6fa; --muted: #a8b8c9; --paper: #fbfaf8;
+        --sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace;
+        --gutter: clamp(20px, 4.6vw, 72px); --max: 1280px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--navy); color: var(--ink); }
+      body { font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+      a { color: inherit; text-decoration: none; }
+      a:focus-visible, button:focus-visible { outline: 2px solid var(--blue-text); outline-offset: 3px; }
+      .label { font: 500 12px/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue-text); }
+
+      /* header shared by every page */
+      .site-header { position: absolute; inset: 0 0 auto; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px var(--gutter); }
+      .plate { display: block; background: var(--paper); padding: 7px 10px; border-radius: 2px; }
+      .plate img { display: block; height: 58px; width: auto; }
+      .menu { display: flex; align-items: center; gap: 26px; font: 500 15px/1 var(--sans); }
+      .menu a { color: rgba(243, 246, 250, 0.82); padding: 8px 0; border-bottom: 1px solid transparent; }
+      .menu a[aria-current='page'] { color: var(--ink); border-bottom-color: var(--blue-text); }
+      .menu a:hover { color: var(--ink); }
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px; border-radius: 2px; font: 500 15px/1 var(--sans); letter-spacing: 0.01em; }
+      .btn-solid { background: var(--paper); color: var(--navy); }
+      .btn-line { border: 1px solid rgba(243, 246, 250, 0.45); color: var(--ink); }
+      .btn-small { min-height: 40px; padding: 0 16px; font-size: 14px; }
+      .menu .btn { border-bottom: 0; padding: 0 16px; color: var(--navy); }
+      .menu-toggle { display: none; }
+
+      /* hero: the studio render bleeds to the edges; the words sit on its open navy */
+      .hero { position: relative; min-height: min(100svh, 980px); overflow: hidden; display: flex; align-items: flex-end; }
+      .hero picture, .hero picture img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% 40%; }
+      .hero picture img { animation: drift 24s ease-in-out infinite alternate; transform-origin: 66% 40%; }
+      @keyframes drift { from { transform: scale(1); } to { transform: scale(1.035); } }
+      @media (prefers-reduced-motion: reduce) { .hero picture img { animation: none; } }
+      .hero::after { content: ''; position: absolute; inset: auto 0 0; height: 22%; background: linear-gradient(to bottom, rgba(7, 19, 33, 0), var(--navy)); }
+      .hero-copy { position: relative; z-index: 2; width: min(560px, 42vw); margin: 0 0 clamp(64px, 12vh, 140px) var(--gutter); }
+      .hero h1 { font: 600 clamp(42px, 4.3vw, 66px)/1.02 var(--sans); letter-spacing: -0.02em; margin: 16px 0 0; text-wrap: balance; }
+      .hero .lead { margin: 22px 0 0; font-size: clamp(17px, 1.3vw, 19px); color: var(--muted); max-width: 30em; }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+      .credit { position: absolute; z-index: 2; right: var(--gutter); bottom: 22px; font: 500 11px/1 var(--mono); letter-spacing: 0.1em; color: rgba(243, 246, 250, 0.5); text-transform: uppercase; }
+
+      main section:not(.hero) { padding-inline: var(--gutter); }
+      .wrap { max-width: var(--max); margin: 0 auto; }
+      .intro { padding-block: clamp(56px, 9vw, 112px) clamp(40px, 6vw, 72px); }
+      .intro .wrap { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(24px, 5vw, 80px); align-items: start; }
+      .intro h2 { font: 600 clamp(28px, 2.6vw, 38px)/1.15 var(--sans); letter-spacing: -0.01em; margin: 12px 0 0; text-wrap: balance; }
+      .intro p { margin: 0; color: var(--muted); font-size: 18px; max-width: 38em; }
+      .intro p + p { margin-top: 16px; }
+
+      .go { padding-block: 0 clamp(64px, 10vw, 120px); }
+      .go ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+      .go li + li { border-left: 1px solid var(--line); }
+      .go li { display: flex; }
+      .go a { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 26px 22px 30px; transition: background 0.2s; }
+      .go a i { margin-top: auto; padding-top: 6px; }
+      .go a:hover { background: var(--surface); }
+      .go b { font: 600 19px/1.25 var(--sans); }
+      .go span { color: var(--muted); font-size: 15px; line-height: 1.5; }
+      .go i { font-style: normal; color: var(--blue-text); font-family: var(--mono); font-size: 14px; }
+
+      .site-footer { border-top: 1px solid var(--line); padding: 36px var(--gutter) 40px; }
+      .site-footer .wrap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 32px; font-size: 14px; color: var(--muted); }
+      .site-footer b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 6px; }
+      .site-footer nav { display: grid; gap: 6px; }
+      .site-footer small { display: block; margin-top: 10px; font-size: 13px; }
+
+      @media (max-width: 1100px) {
+        .menu a:not(.btn) { display: none; }
+        .menu-toggle { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid rgba(243, 246, 250, 0.45); border-radius: 2px; background: rgba(7, 19, 33, 0.4); color: var(--ink); }
+        .go ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .go li + li { border-left: 0; }
+        .go li { border-bottom: 1px solid var(--line); }
+        .go li:nth-child(even) { border-left: 1px solid var(--line); }
+      }
+      /* phone: a portrait render of its own; its lower half is open navy, so the words sit there
+         full width, never squeezed to one side */
+      @media (max-width: 760px) {
+        .site-header { padding: 14px 16px; }
+        .plate img { height: 42px; }
+        .menu .btn { display: none; }
+        .hero { min-height: 0; height: auto; display: block; }
+        /* the render is 1:2; its top seventh is empty navy above the drone, so it is cropped away */
+        .hero picture { position: relative; display: block; aspect-ratio: 1 / 1.78; }
+        .hero picture img { animation: none; object-position: 50% 100%; }
+        .hero picture::after { content: ''; position: absolute; inset: auto 0 0; height: 30%; background: linear-gradient(to bottom, rgba(7, 19, 33, 0), var(--navy)); }
+        .hero::after { display: none; }
+        /* the words start below the blade (which ends about 60 % down the portrait render) and
+           carry on under the picture, on the same navy */
+        .hero-copy { position: relative; width: auto; margin: -72vw 0 0; padding: 0 20px 36px; }
+        .hero h1 { font-size: clamp(34px, 9.6vw, 42px); }
+        .hero .lead { font-size: 16px; margin-top: 14px; }
+        .actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 22px; }
+        .credit { top: auto; bottom: auto; right: 16px; margin-top: -24px; position: absolute; display: none; }
+        .intro .wrap { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+        .intro p { font-size: 16px; }
+        .go ul { grid-template-columns: minmax(0, 1fr); }
+        .go li:nth-child(even) { border-left: 0; }
+        .go a { padding: 20px 4px 22px; }
+        .site-footer .wrap { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="plate" href="./" aria-label="AEROVIA INSPECTOR, inicio"><img src="../src/assets/brand/aerovia-logo.webp" alt="AEROVIA INSPECTOR" /></a>
+      <nav class="menu" aria-label="Principal">
+        <a href="./" aria-current="page">Inicio</a>
+        <a href="servicios/">Servicios</a>
+        <a href="inspeccion-eolica/">Inspección eólica</a>
+        <a href="como-trabajamos/">Cómo trabajamos</a>
+        <a href="informes/">Informes</a>
+        <a href="contacto/">Contacto</a>
+        <a class="btn btn-solid btn-small" href="contacto/">Solicitar presupuesto</a>
+      </nav>
+      <button class="menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="titulo">
+        <picture>
+          <source media="(max-width: 760px)" srcset="../docs/rediseno-web/render/inicio-movil.webp" />
+          <img src="../docs/rediseno-web/render/inicio-escritorio.webp" alt="Dron de inspección suspendido sobre el borde de ataque de una pala de aerogenerador, con la cámara orientada a la superficie, sobre fondo azul marino" />
+        </picture>
+        <div class="hero-copy">
+          <p class="label">Inspección técnica con drones</p>
+          <h1 id="titulo">Inspección aérea. Criterio de ingeniería.</h1>
+          <p class="lead">Inspección visual con drones de aerogeneradores, torres e infraestructuras, con un informe de fotografías localizadas para la revisión de su equipo de ingeniería.</p>
+          <div class="actions">
+            <a class="btn btn-solid" href="contacto/">Solicitar presupuesto</a>
+            <a class="btn btn-line" href="inspeccion-eolica/">Ver la inspección eólica <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+        <span class="credit">Recreación 3D</span>
+      </section>
+
+      <section class="intro" aria-labelledby="t-intro">
+        <div class="wrap">
+          <div>
+            <p class="label">AEROVIA INSPECTOR</p>
+            <h2 id="t-intro">Ver de cerca lo que desde el suelo no se ve.</h2>
+          </div>
+          <div>
+            <p>Planificamos el vuelo con su equipo, capturamos cada superficie del activo de forma sistemática y ordenamos las imágenes por componente y posición.</p>
+            <p>El resultado es un informe técnico con fotografías localizadas y observaciones, como base para las decisiones de mantenimiento de su equipo.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="go" aria-label="Páginas">
+        <div class="wrap">
+          <ul>
+            <li><a href="servicios/"><b>Servicios</b><span>Aerogeneradores, torres e infraestructuras, e informe técnico.</span><i aria-hidden="true">→</i></a></li>
+            <li><a href="inspeccion-eolica/"><b>Inspección eólica</b><span>El dron junto a la pala, paso a paso, en un recorrido 3D.</span><i aria-hidden="true">→</i></a></li>
+            <li><a href="como-trabajamos/"><b>Cómo trabajamos</b><span>Planificación, captura, revisión y entrega.</span><i aria-hidden="true">→</i></a></li>
+            <li><a href="informes/"><b>Informes</b><span>Un ejemplo de entregable, identificado como demostración.</span><i aria-hidden="true">→</i></a></li>
+            <li><a href="contacto/"><b>Contacto</b><span>Solicite un presupuesto para su activo.</span><i aria-hidden="true">→</i></a></li>
+          </ul>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="wrap">
+        <div><b>AEROVIA INSPECTOR</b>Inspección técnica con drones.<small>© 2026 AEROVIA · Imágenes: recreación 3D.</small></div>
+        <nav aria-label="Pie"><a href="servicios/">Servicios</a><a href="inspeccion-eolica/">Inspección eólica</a><a href="como-trabajamos/">Cómo trabajamos</a><a href="informes/">Informes</a></nav>
+        <div><b>Contacto</b><a href="contacto/">Solicitar presupuesto</a><small>Correo y teléfono pendientes de confirmar.</small></div>
+      </div>
+    </footer>
+  </body>
+</html>

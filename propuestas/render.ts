@@ -29,7 +29,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 const sunQ = q.get('sun')?.split(',').map(Number);
-const { scene, poseDrone } = buildProposalScene({ ...(sunQ ? { sunDir: new THREE.Vector3(sunQ[0], sunQ[1], sunQ[2]) } : {}), props: (q.get('props') ?? 'smear') as PropLook, sky: await skyFromQuery(q) });
+const { scene, poseDrone } = buildProposalScene({ ...(sunQ ? { sunDir: new THREE.Vector3(sunQ[0], sunQ[1], sunQ[2]) } : {}), props: (q.get('props') ?? 'smear') as PropLook, sky: await skyFromQuery(q), studio: q.get('studio') === '1' });
 const shot = SHOTS[name][fmt];
 renderer.toneMappingExposure = Number(q.get('exp') ?? shot.exposure);
 const pose = poseDrone(shot.p, parseHover(q.get('hover')));
@@ -38,6 +38,9 @@ const placed = shot.camera(pose);
 // camOn=r,q,dx,dy,dz: a camera placed relative to a point on blade B's surface
 const camOn = q.get('camOn')?.split(',').map(Number);
 camera.position.copy(camOn ? bladeSurfaceWorld('B', camOn[0], camOn[1]).add(new THREE.Vector3(camOn[2], camOn[3], camOn[4])) : vec(q.get('cam')) ?? placed.position);
+// camAround=az,el,dist: the camera around the drone (degrees; azimuth from +z towards +x)
+const around = q.get('camAround')?.split(',').map(Number);
+if (around) { const [az, el] = around.slice(0, 2).map(THREE.MathUtils.degToRad); camera.position.copy(pose.position).add(new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(around[2])); }
 const aim = q.get('aim')?.split(',').map(Number);
 if (aim) aimAt(camera, pose.position, aim[0], aim[1], THREE.MathUtils.degToRad(Number(q.get('roll') ?? 0))); else camera.lookAt(vec(q.get('look')) ?? placed.look);
 camera.updateProjectionMatrix();

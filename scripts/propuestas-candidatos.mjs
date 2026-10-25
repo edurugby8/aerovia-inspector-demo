@@ -16,7 +16,7 @@ for (const c of list) {
   const page = await browser.newPage();
   await page.setViewport({ width: w, height: h });
   const params = new URLSearchParams({ mode: c.mode ?? 'raster', w: String(w), h: String(h), spp: String(c.spp ?? 32) });
-  for (const k of ['shot', 'fmt', 'cam', 'camOn', 'look', 'aim', 'fov', 'tm', 'exp', 'hover', 'sun', 'roll', 'props', 'sky', 'skyaz', 'skyexp']) if (c[k] !== undefined) params.set(k, String(c[k]));
+  for (const k of ['shot', 'fmt', 'cam', 'camOn', 'look', 'aim', 'fov', 'tm', 'exp', 'hover', 'sun', 'roll', 'props', 'sky', 'skyaz', 'skyexp', 'studio', 'camAround']) if (c[k] !== undefined) params.set(k, String(c[k]));
   await page.goto(`${base}propuestas/render.html?${params}`, { waitUntil: 'domcontentloaded', timeout: 180000 });
   await page.waitForFunction(() => window.__done, { timeout: 600000, polling: 200 });
   const file = path.join(out, `${c.name}.png`);
